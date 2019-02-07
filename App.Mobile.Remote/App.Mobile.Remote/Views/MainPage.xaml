@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<TabbedPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewModels="clr-namespace:App.Mobile.Remote.ViewModels;assembly=App.Mobile.Remote"
+             xmlns:code="clr-namespace:App.Mobile.Remote.Code;assembly=App.Mobile.Remote"
+             xmlns:views="clr-namespace:App.Mobile.Remote.Views;assembly=App.Mobile.Remote"
+             x:Class="App.Mobile.Remote.Views.MainPage">
+	<views:MainActionsPage Title="Actions"/>
+	<views:SettingsPage Title="Settings"/>
+</TabbedPage>

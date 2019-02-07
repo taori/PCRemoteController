@@ -1,0 +1,15 @@
+﻿<Shell xmlns="http://xamarin.com/schemas/2014/forms" 
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" 
+       xmlns:views="clr-namespace:App.Mobile.Remote.Views;assembly=App.Mobile.Remote"
+       RouteScheme="app" 
+       RouteHost="microsoft.com" 
+       Route="root"
+       x:Class="App.Mobile.Remote.Views.AppShell">
+	<ShellItem Title="Available agents">
+		<ShellSection>
+			<ShellContent>
+				<views:AvailableRemoteAgents></views:AvailableRemoteAgents>
+			</ShellContent>
+		</ShellSection>
+	</ShellItem>
+</Shell>

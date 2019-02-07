@@ -1,0 +1,1 @@
+start "-console" "%~dp0RemoteAgent.Service.exe" "-console"

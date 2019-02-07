@@ -1,0 +1,34 @@
+﻿<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewModels="clr-namespace:App.Mobile.Remote.ViewModels;assembly=App.Mobile.Remote"
+             xmlns:views="clr-namespace:App.Mobile.Remote.Views;assembly=App.Mobile.Remote"
+             xmlns:code="clr-namespace:App.Mobile.Remote.Code;assembly=App.Mobile.Remote"
+             BackgroundColor="White"
+             x:Class="App.Mobile.Remote.Views.AvailableRemoteAgents">
+	<ContentPage.Behaviors>
+		<code:AppearingActivatorBehavior></code:AppearingActivatorBehavior>
+	</ContentPage.Behaviors>
+	<ContentPage.BindingContext>
+		<viewModels:AvailableRemoteAgentsViewModel />
+	</ContentPage.BindingContext>
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+		</Grid.RowDefinitions>
+		<StackLayout HorizontalOptions="Center" Orientation="Horizontal" IsVisible="{Binding Path=AnyAgentAvailable, Converter={StaticResource BooleanInversionConverter}, Mode=OneWay}">
+			<Label TextColor="Black" Text="Loading agents" VerticalOptions="Center" FontSize="Large" Margin="0,0,10,0"/>
+			<ActivityIndicator IsRunning="True" Color="Black" Margin="0,10"/>
+		</StackLayout>
+		<ListView 
+			Grid.Row="1"
+			ItemsSource="{Binding Path=Agents}"
+			CachingStrategy="RecycleElement">
+			<ListView.ItemTemplate>
+				<DataTemplate>
+					<TextCell Text="{Binding Path=AgentName}" TextColor="Black" Command="{Binding Path=SelectCommand}" />
+				</DataTemplate>
+			</ListView.ItemTemplate>
+		</ListView>
+	</Grid>
+</ContentPage>

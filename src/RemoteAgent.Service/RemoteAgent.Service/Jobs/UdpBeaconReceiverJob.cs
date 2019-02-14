@@ -33,12 +33,19 @@ namespace RemoteAgent.Service.Jobs
 					return;
 				}
 
-				while (!cancellationToken.IsCancellationRequested)
+				using (var broadcaster = new UdpClient())
 				{
-					using (var broadcaster = new UdpClient(new IPEndPoint(IPAddress.Any, parsedBeaconPort)))
+					var ep = new IPEndPoint(IPAddress.Any, parsedBeaconPort);
+					broadcaster.ExclusiveAddressUse = false;
+					broadcaster.AllowNatTraversal(true);
+					broadcaster.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+					broadcaster.Client.Bind(ep);
+					Logger.Info($"Binding ({nameof(UdpBeaconReceiverJob)}) on [{ep}]");
+
+					while (!cancellationToken.IsCancellationRequested)
 					{
 						var receive = await broadcaster.ReceiveAsync();
-						Console.WriteLine($"{DateTime.Now:hh:mm:ss.} - {Encoding.UTF8.GetString(receive.Buffer)}");
+						Logger.Debug($"[{receive.RemoteEndPoint}] -> {Encoding.UTF8.GetString(receive.Buffer)}");
 					}
 				}
 

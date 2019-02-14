@@ -33,7 +33,7 @@ namespace RemoteAgent.Service.Jobs
 			{
 				using (var listenerSocket = new Socket(SocketType.Stream, ProtocolType.Tcp))
 				{
-					var port = ConfigurationManager.AppSettings["ListenerPort"] ?? "8087";
+					var port = ConfigurationManager.AppSettings["TcpListenerPort"] ?? "8087";
 					if (!int.TryParse(port, out var parsedPort))
 					{
 						Logger.Error($"[{port}] is not a valid port integer.");

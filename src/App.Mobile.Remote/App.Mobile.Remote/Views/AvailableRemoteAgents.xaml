@@ -26,7 +26,7 @@
 			CachingStrategy="RecycleElement">
 			<ListView.ItemTemplate>
 				<DataTemplate>
-					<TextCell Text="{Binding Path=AgentName}" TextColor="Black" Command="{Binding Path=SelectCommand}" />
+					<TextCell Text="{Binding Path=AgentName}" TextColor="Black" Command="{Binding Path=SelectCommand}" CommandParameter="{Binding Path=.}" />
 				</DataTemplate>
 			</ListView.ItemTemplate>
 		</ListView>

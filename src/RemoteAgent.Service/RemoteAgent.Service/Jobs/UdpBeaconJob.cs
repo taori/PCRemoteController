@@ -34,12 +34,15 @@ namespace RemoteAgent.Service.Jobs
 				}
 
 				var targetEndpoint = new IPEndPoint(IPAddress.Broadcast, parsedBeaconPort);
-				var datagram = Encoding.UTF8.GetBytes("Available for connection.");
+				var datagram = Encoding.UTF8.GetBytes($"Agent [{ConfigurationManager.AppSettings["AgentName"]}] is alive.");
 
-				while (!cancellationToken.IsCancellationRequested)
+				using (var broadcaster = new UdpClient())
 				{
-					using (var broadcaster = new UdpClient())
+					broadcaster.AllowNatTraversal(true);
+
+					while (!cancellationToken.IsCancellationRequested)
 					{
+						Logger.Debug($"Sending message on [{targetEndpoint}].");
 						await broadcaster.SendAsync(datagram, datagram.Length, targetEndpoint);
 						if (!int.TryParse(ConfigurationManager.AppSettings["BeaconPollingInterval"], out var pollingInterval))
 							pollingInterval = 10000;

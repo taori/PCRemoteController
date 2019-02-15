@@ -10,6 +10,7 @@ using System.Reactive.Threading.Tasks;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using App.Mobile.Remote.Code;
 using App.Mobile.Remote.Views;
 using Xamarin.Forms;
@@ -48,7 +49,7 @@ namespace App.Mobile.Remote.ViewModels
 				return;
 
 			WhenMessageReceived.Subscribe(MessageReceivedCallback);
-			var ep = new IPEndPoint(IPAddress.Any, ApplicationSettings.BeaconPort);
+			var ep = new IPEndPoint(IPAddress.Any, ApplicationSettings.UdpPort);
 			_beaconReceiver = new UdpClient(ep);
 
 			await Task.WhenAny(
@@ -73,14 +74,21 @@ namespace App.Mobile.Remote.ViewModels
 				{
 					AgentName = $"{name} @ {udpReceive.RemoteEndPoint}",
 					UdpEndpoint = udpReceive.RemoteEndPoint,
-					LastLifeSignal = DateTime.Now,
-					SelectCommand = new Command(OpenAgentExecute)
+					LastLifeSignal = DateTime.Now
 				});
 			}
 			else
 			{
 				agentMatch.LastLifeSignal = DateTime.Now;
 			}
+		}
+
+		private ICommand _selectCommand;
+
+		public ICommand SelectCommand
+		{
+			get => _selectCommand ?? (_selectCommand = new Command(OpenAgentExecute));
+			set => SetValue(ref _selectCommand, value, nameof(SelectCommand));
 		}
 
 		private async void OpenAgentExecute(object obj)

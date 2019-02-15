@@ -19,10 +19,13 @@ namespace App.Mobile.Remote.ViewModels
 		protected bool SetValue<T>(ref T field, T value, string propertyName)
 		{
 			if (EqualityComparer<T>.Default.Equals(field, value))
+			{
+				OnPropertyChanged(propertyName);
 				return false;
+			}
 
 			field = value;
-			OnPropertyChanged();
+			OnPropertyChanged(propertyName);
 			return true;
 		}
 	}

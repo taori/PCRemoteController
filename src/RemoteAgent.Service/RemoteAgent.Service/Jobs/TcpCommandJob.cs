@@ -143,6 +143,7 @@ namespace RemoteAgent.Service.Jobs
 		private async Task ProcessLineAsync(ReadOnlySequence<byte> slice)
 		{
 			var line = slice.ToString();
+			Logger.Info($"Received command: {line}");
 		}
 	}
 

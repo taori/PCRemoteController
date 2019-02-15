@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RemoteAgent.Service.Shell;
+using RemoteAgent.Service.Utility;
 
 namespace RemoteAgent.Service.Jobs
 {
@@ -45,7 +46,7 @@ namespace RemoteAgent.Service.Jobs
 					while (!cancellationToken.IsCancellationRequested)
 					{
 						var receive = await broadcaster.ReceiveAsync();
-						Logger.Debug($"[{receive.RemoteEndPoint}] -> {Encoding.UTF8.GetString(receive.Buffer)}");
+						Logger.Debug($"(<<<) [{receive.RemoteEndPoint.Prettify()}] {Encoding.UTF8.GetString(receive.Buffer)}");
 					}
 				}
 

@@ -7,12 +7,28 @@ namespace App.Mobile.Remote.ViewModels
 {
 	public class SettingsViewModel : ViewModelBase, IActivateable
 	{
-		private int _beaconPort;
+		private int _udpPort;
 
-		public int BeaconPort
+		public int UdpPort
 		{
-			get => _beaconPort;
-			set => SetValue(ref _beaconPort, value, nameof(BeaconPort));
+			get => _udpPort;
+			set => SetValue(ref _udpPort, value, nameof(UdpPort));
+		}
+
+		private int _bufferSize;
+
+		public int BufferSize
+		{
+			get => _bufferSize;
+			set => SetValue(ref _bufferSize, value, nameof(BufferSize));
+		}
+
+		private int _tcpPort;
+
+		public int TcpPort
+		{
+			get => _tcpPort;
+			set => SetValue(ref _tcpPort, value, nameof(TcpPort));
 		}
 
 		private ICommand _saveCommand;
@@ -25,14 +41,19 @@ namespace App.Mobile.Remote.ViewModels
 
 		private async void SaveExecute(object obj)
 		{
-			ApplicationSettings.BeaconPort = BeaconPort;
+			ApplicationSettings.UdpPort = UdpPort;
+			ApplicationSettings.TcpPort = TcpPort;
+			ApplicationSettings.BufferSize = BufferSize;
+
 			await ApplicationSettings.SaveAsync();
 		}
 
 		/// <inheritdoc />
 		public Task ActivateAsync(bool activatedBefore)
 		{
-			BeaconPort = ApplicationSettings.BeaconPort;
+			UdpPort = ApplicationSettings.UdpPort;
+			TcpPort = ApplicationSettings.TcpPort;
+			BufferSize = ApplicationSettings.BufferSize;
 
 			return Task.CompletedTask;
 		}

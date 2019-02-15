@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using RemoteAgent.Service.Shell;
+using RemoteAgent.Service.Utility;
 
 namespace RemoteAgent.Service.Jobs
 {
@@ -42,7 +43,7 @@ namespace RemoteAgent.Service.Jobs
 
 					while (!cancellationToken.IsCancellationRequested)
 					{
-						Logger.Debug($"Sending message on [{targetEndpoint}].");
+						Logger.Debug($"(>>>) [{targetEndpoint.Prettify()}] {Encoding.UTF8.GetString(datagram)}");
 						await broadcaster.SendAsync(datagram, datagram.Length, targetEndpoint);
 						if (!int.TryParse(ConfigurationManager.AppSettings["BeaconPollingInterval"], out var pollingInterval))
 							pollingInterval = 10000;

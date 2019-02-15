@@ -4,6 +4,7 @@
              xmlns:views="clr-namespace:App.Mobile.Remote.Views;assembly=App.Mobile.Remote"
              xmlns:code="clr-namespace:App.Mobile.Remote.Code;assembly=App.Mobile.Remote"
              BackgroundColor="White"
+			 x:Name="Self"
              x:Class="App.Mobile.Remote.Views.AvailableRemoteAgents">
 	<ContentPage.Behaviors>
 		<code:AppearingActivatorBehavior></code:AppearingActivatorBehavior>
@@ -26,7 +27,7 @@
 			CachingStrategy="RecycleElement">
 			<ListView.ItemTemplate>
 				<DataTemplate>
-					<TextCell Text="{Binding Path=AgentName}" TextColor="Black" Command="{Binding Path=SelectCommand}" CommandParameter="{Binding Path=.}" />
+					<TextCell Text="{Binding Path=AgentName}" TextColor="Black" Command="{Binding Source={x:Reference Self}, Path=BindingContext.SelectCommand}" CommandParameter="{Binding Path=.}" />
 				</DataTemplate>
 			</ListView.ItemTemplate>
 		</ListView>

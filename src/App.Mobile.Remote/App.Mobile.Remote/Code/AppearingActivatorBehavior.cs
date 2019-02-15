@@ -17,11 +17,36 @@ namespace App.Mobile.Remote.Code
 			set { SetValue(ActivatedBeforeProperty, value); }
 		}
 
+		public static readonly BindableProperty DeactivatedBeforeProperty = BindableProperty.Create(
+			propertyName: nameof(DeactivatedBefore),
+			returnType: typeof(bool),
+			declaringType: typeof(AppearingActivatorBehavior),
+			defaultValue: null);
+
+		public bool DeactivatedBefore
+		{
+			get { return (bool) GetValue(DeactivatedBeforeProperty); }
+			set { SetValue(DeactivatedBeforeProperty, value); }
+		}
+
 		/// <inheritdoc />
 		protected override void OnAttachedTo(Page bindable)
 		{
 			base.OnAttachedTo(bindable);
 			bindable.Appearing += BindableOnAppearing;
+			bindable.Disappearing += BindableOnDisappearing;
+		}
+
+		private async void BindableOnDisappearing(object sender, EventArgs e)
+		{
+			if (sender is Page page)
+			{
+				if (page.BindingContext is IDeactivateble activateable)
+				{
+					await activateable.DeactivateAsync((bool)this.GetValue(DeactivatedBeforeProperty));
+					this.SetValue(DeactivatedBeforeProperty, true);
+				}
+			}
 		}
 
 		private async void BindableOnAppearing(object sender, EventArgs e)
@@ -67,6 +92,7 @@ namespace App.Mobile.Remote.Code
 		{
 			base.OnDetachingFrom(bindable);
 			bindable.Appearing -= BindableOnAppearing;
+			bindable.Disappearing -= BindableOnDisappearing;
 		}
 	}
 }

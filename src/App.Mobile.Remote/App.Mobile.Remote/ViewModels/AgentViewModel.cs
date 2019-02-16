@@ -104,23 +104,23 @@ namespace App.Mobile.Remote.ViewModels
 
 		private async Task InteractWithTcpClientAsync()
 		{
-			using (var udpClient = new UdpClient())
-			{
-				var message = "Retrieving commands";
-				await udpClient.SendAsync(Encoding.UTF8.GetBytes(message), message.Length, new IPEndPoint(IPAddress.Broadcast, ApplicationSettings.UdpPort));
-			}
+//			using (var udpClient = new UdpClient())
+//			{
+//				var message = "Retrieving commands";
+//				await udpClient.SendAsync(Encoding.UTF8.GetBytes(message), message.Length, new IPEndPoint(IPAddress.Broadcast, ApplicationSettings.UdpPort));
+//			}
 
-			using (var socket = new Socket(SocketType.Stream, ProtocolType.Tcp))
+			var serverEndpoint = new IPEndPoint(UdpEndpoint.Address, ApplicationSettings.TcpPort);
+			var localEndpoint = new IPEndPoint(GetLocalIpAddress(), ApplicationSettings.TcpPort);
+			Log.Info($"Creating TcpClient for [{localEndpoint}].");
+			using (var client = new TcpClient(localEndpoint))
 			{
-//				var localIpAddress = GetLocalIpAddress();
-				await socket.ConnectAsync(new IPEndPoint(UdpEndpoint.Address, ApplicationSettings.TcpPort));
-//				socket.Bind(new IPEndPoint(IPAddress.Any, ApplicationSettings.TcpPort));
-//				socket.Listen(120);
-//				var remoteSocket = await socket.AcceptAsync();
-
+				Log.Debug($"Connecting to server [{serverEndpoint}].");
+				await client.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
 				while (!_cts.IsCancellationRequested)
 				{
-					await ProcessLinesAsync(socket);
+					Log.Debug($"Processing input for [{serverEndpoint}].");
+					await ProcessLinesAsync(client.Client);
 				}
 			}
 		}

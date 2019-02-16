@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Configuration;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -12,7 +13,7 @@ using RemoteAgent.Service.Shell;
 
 namespace RemoteAgent.Service.Jobs
 {
-	public class TcpCommandJob : JobBase
+	public class TcpCommandServerJob : JobBase
 	{
 		private int _bufferSize;
 
@@ -31,51 +32,64 @@ namespace RemoteAgent.Service.Jobs
 		{
 			try
 			{
-				using (var listenerSocket = new Socket(SocketType.Stream, ProtocolType.Tcp))
+				var port = ConfigurationManager.AppSettings["TcpListenerPort"] ?? "8087";
+				if (!int.TryParse(port, out var parsedPort))
 				{
-					var port = ConfigurationManager.AppSettings["TcpListenerPort"] ?? "8087";
-					if (!int.TryParse(port, out var parsedPort))
-					{
-						Logger.Error($"[{port}] is not a valid port integer.");
-						return;
-					}
+					Logger.Error($"[{port}] is not a valid port integer.");
+					return;
+				}
+				var bufferSize = ConfigurationManager.AppSettings["BufferSize"];
+				if (!int.TryParse(bufferSize, out var parsedBufferSize))
+				{
+					Logger.Error($"Buffersize [{bufferSize}] is not a valid value.");
+					return;
+				}
 
-					var bufferSize = ConfigurationManager.AppSettings["BufferSize"];
-					if (!int.TryParse(bufferSize, out var parsedBufferSize))
-					{
-						Logger.Error($"Buffersize [{bufferSize}] is not a valid value.");
-						return;
-					}
-
+				var localIp = Dns.GetHostAddresses(Dns.GetHostName()).FirstOrDefault(d => d.AddressFamily == AddressFamily.InterNetwork);
+//				var listenerEndpoint = new IPEndPoint(IPAddress.Loopback, parsedPort);
+				Logger.Info($"Binding TcpListener to [{localIp}].");
+				var listener = new TcpListener(new IPEndPoint(localIp, parsedPort));
+				Logger.Debug($"Starting listener with backlog [120]");
+				listener.Start(120);
+				using (listener.Server)
+				{
 					_bufferSize = parsedBufferSize;
 					Logger.Info($"Operating with buffersize [{_bufferSize}].");
 
-					Logger.Info($"Binding to port [{parsedPort}].");
-					listenerSocket.Bind(new IPEndPoint(IPAddress.Loopback, parsedPort));
-					listenerSocket.Listen(120);
-					Logger.Info($"Listening to port [{parsedPort}].");
-
 					while (!cancellationToken.IsCancellationRequested)
 					{
-						var remoteSocket = await listenerSocket.AcceptAsync();
-						await ProcessLinesAsync(remoteSocket);
+						Logger.Debug($"Waiting for client on [{parsedPort}].");
+						var remoteSocket = await listener.AcceptSocketAsync();
+						Logger.Debug($"Client connected [{remoteSocket.RemoteEndPoint}].");
+						ProcessLinesAsync(remoteSocket, cancellationToken);
 					}
 				}
 			}
 			catch (Exception e)
 			{
-				Logger.Fatal($"[{nameof(TcpCommandJob)}] crashed.");
+				Logger.Fatal($"[{nameof(TcpCommandServerJob)}] crashed.");
 				Logger.Fatal(e);
 			}
 		}
 
-		private async Task ProcessLinesAsync(Socket socket)
+		private async Task ProcessLinesAsync(Socket socket, CancellationToken cancellationToken)
 		{
-			var pipe = new Pipe();
-			var writing = FillPipeAsync(socket, pipe.Writer);
-			var reading = ReadPipeAsync(pipe.Reader);
+			try
+			{
+				while (!cancellationToken.IsCancellationRequested)
+				{
+					var pipe = new Pipe();
+					var writing = FillPipeAsync(socket, pipe.Writer);
+					var reading = ReadPipeAsync(pipe.Reader);
 
-			await Task.WhenAll(reading, writing);
+					await Task.WhenAll(reading, writing);
+				}
+			}
+			catch (OperationCanceledException) { }
+			catch (Exception e)
+			{
+				Logger.Error(e);
+			}
 		}
 
 		private async Task FillPipeAsync(Socket socket, PipeWriter writer)

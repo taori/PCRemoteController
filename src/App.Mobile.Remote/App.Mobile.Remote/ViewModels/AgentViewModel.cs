@@ -5,12 +5,15 @@ using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Reactive.Disposables;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using App.Mobile.Remote.Code;
+using RemoteAgent.Common;
+using Toolkit.Pipelines;
 using Xamarin.Forms;
 using Application = Xamarin.Forms.PlatformConfiguration.AndroidSpecific.AppCompat.Application;
 
@@ -48,8 +51,14 @@ namespace App.Mobile.Remote.ViewModels
 			}
 		}
 
-		private Subject<string> _whenTcpLineReceived = new Subject<string>();
+		private Subject<string> _whenTcpLineReceived;
 		public IObservable<string> WhenTcpLineReceived => _whenTcpLineReceived;
+
+		private Subject<PipeAdapter> _whenPipeAvailable;
+		public IObservable<PipeAdapter> WhenPipeAvailable => _whenPipeAvailable;
+
+		private Subject<PipeAdapter> _whenPipeDone;
+		public IObservable<PipeAdapter> WhenPipeDone => _whenPipeDone;
 
 		private ObservableCollection<TextCommandViewModel> _commands;
 
@@ -61,18 +70,47 @@ namespace App.Mobile.Remote.ViewModels
 		
 		public bool IsAlive => (DateTime.Now - LastLifeSignal).TotalSeconds < 20;
 
+		private PipeAdapter _pipeAdapter;
+
+		private TcpClient _tcpClient;
+
+		private CompositeDisposable _disposables = new CompositeDisposable();
+
 		/// <inheritdoc />
 		public Task ActivateAsync(bool activatedBefore)
 		{
-			if(activatedBefore)
-				return Task.CompletedTask;
+			Log.Debug("Creating tcp client.");
+			_tcpClient = new TcpClient();
 
+			Log.Debug("Creating cancellation token.");
 			_cts = new CancellationTokenSource();
 
+			_whenTcpLineReceived = new Subject<string>();
+			_whenPipeAvailable = new Subject<PipeAdapter>();
+			_whenPipeDone = new Subject<PipeAdapter>();
+
 			WhenTcpLineReceived.Subscribe(ReceivedContent);
+			WhenPipeAvailable.Subscribe(OnPipeAvailable);
+			WhenPipeDone.Subscribe(OnPipeDone);
+
 			Task.Run(() => InteractWithTcpClientAsync(), _cts.Token);
 
 			return Task.CompletedTask;
+		}
+
+		private void OnPipeDone(PipeAdapter pipe)
+		{
+			Log.Debug($"OnPipeDone");
+			Log.Debug($"Unbinding events.");
+			pipe.Received -= Received;
+		}
+
+		private async void OnPipeAvailable(PipeAdapter pipe)
+		{
+			Log.Debug($"{nameof(OnPipeAvailable)}.");
+			var command = new HelloCommand("Android").ToBytes(ApplicationSettings.EncryptionPhrase);
+			var sent = await pipe.Socket.SendAsync(new ArraySegment<byte>(command), SocketFlags.None);
+			Log.Info($"message bytes sent: [{sent}].");
 		}
 
 		private void ReceivedContent(string content)
@@ -89,116 +127,48 @@ namespace App.Mobile.Remote.ViewModels
 		/// <inheritdoc />
 		public async Task DeactivateAsync(bool activatedBefore)
 		{
+			Log.Debug($"{nameof(DeactivateAsync)}");
+			_tcpClient?.Dispose();
+			_whenPipeDone.OnNext(_pipeAdapter);
 			_cts?.Cancel();
 			_cts?.Dispose();
+			_whenPipeDone?.Dispose();
+			_whenPipeAvailable?.Dispose();
+			_whenTcpLineReceived?.Dispose();
 		}
 
 		private CancellationTokenSource _cts = new CancellationTokenSource();
 
-		private IPAddress GetLocalIpAddress()
-		{
-			var hostAddresses = Dns.GetHostAddresses(Dns.GetHostName());
-			var filter = hostAddresses.FirstOrDefault(d => d.AddressFamily == AddressFamily.InterNetwork || d.AddressFamily == AddressFamily.InterNetworkV6);
-			return filter;
-		}
-
 		private async Task InteractWithTcpClientAsync()
 		{
-//			using (var udpClient = new UdpClient())
-//			{
-//				var message = "Retrieving commands";
-//				await udpClient.SendAsync(Encoding.UTF8.GetBytes(message), message.Length, new IPEndPoint(IPAddress.Broadcast, ApplicationSettings.UdpPort));
-//			}
-
 			var serverEndpoint = new IPEndPoint(UdpEndpoint.Address, ApplicationSettings.TcpPort);
-			var localEndpoint = new IPEndPoint(GetLocalIpAddress(), ApplicationSettings.TcpPort);
-			Log.Info($"Creating TcpClient for [{localEndpoint}].");
-			using (var client = new TcpClient(localEndpoint))
+
+			var settings = new PipeAdapterSettings();
+			settings.ExceptionHandler = e => Log.Error(e);
+			if (_pipeAdapter != null)
+				_whenPipeDone.OnNext(_pipeAdapter);
+
+			Log.Debug($"Creating IO-Pipe.");
+			var pipeAdapter = new PipeAdapter(_tcpClient.Client, settings);
+			_pipeAdapter = pipeAdapter;
+			pipeAdapter.Received += Received;
+
+			Log.Debug($"Connecting to server [{serverEndpoint}].");
+			await _tcpClient.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
+
+			_whenPipeAvailable.OnNext(pipeAdapter);
+			while (!_cts.IsCancellationRequested && _tcpClient.Connected)
 			{
-				Log.Debug($"Connecting to server [{serverEndpoint}].");
-				await client.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
-				while (!_cts.IsCancellationRequested)
-				{
-					Log.Debug($"Processing input for [{serverEndpoint}].");
-					await ProcessLinesAsync(client.Client);
-				}
-			}
-		}
-
-		private async Task ProcessLinesAsync(Socket socket)
-		{
-			var pipe = new Pipe();
-			var writing = FillPipeAsync(socket, pipe.Writer);
-			var reading = ReadPipeAsync(pipe.Reader);
-
-			await Task.WhenAll(reading, writing);
-		}
-
-		private async Task FillPipeAsync(Socket socket, PipeWriter writer)
-		{
-			while (true)
-			{
-				var memory = writer.GetMemory(ApplicationSettings.UdpPort);
-				try
-				{
-					var bytesRead = await socket.ReceiveAsync(memory, SocketFlags.None);
-					if (bytesRead == 0)
-					{
-						break;
-					}
-					writer.Advance(bytesRead);
-				}
-				catch (Exception ex)
-				{
-					Log.Error(ex);
-					break;
-				}
-
-				var result = await writer.FlushAsync();
-				if (result.IsCompleted)
-				{
-					break;
-				}
+				Log.Debug($"Processing input for [{serverEndpoint}].");
+				await pipeAdapter.ExecuteAsync();
 			}
 
-			writer.Complete();
+			Log.Info("TCP Connection gone.");
 		}
 
-		private async Task ReadPipeAsync(PipeReader reader)
+		private void Received(object sender, ReadOnlySequence<byte> e)
 		{
-			while (true)
-			{
-				var result = await reader.ReadAsync();
-				var buffer = result.Buffer;
-				SequencePosition? position = null;
-
-				do
-				{
-					position = buffer.PositionOf((byte)'\n');
-
-					if (position != null)
-					{
-						await ProcessLineAsync(buffer.Slice(0, position.Value));
-
-						buffer = buffer.Slice(buffer.GetPosition(1, position.Value));
-					}
-				}
-				while (position != null);
-
-				reader.AdvanceTo(buffer.Start, buffer.End);
-
-				if (result.IsCompleted)
-				{
-					break;
-				}
-			}
-
-			reader.Complete();
-		}
-
-		private async Task ProcessLineAsync(ReadOnlySequence<byte> slice)
-		{
-			var line = slice.ToString();
+			var line = e.ToString();
 			_whenTcpLineReceived.OnNext(line);
 		}
 	}

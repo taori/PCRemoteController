@@ -15,20 +15,28 @@ namespace App.Mobile.Remote.ViewModels
 			set => SetValue(ref _udpPort, value, nameof(UdpPort));
 		}
 
-		private int _bufferSize;
-
-		public int BufferSize
-		{
-			get => _bufferSize;
-			set => SetValue(ref _bufferSize, value, nameof(BufferSize));
-		}
-
 		private int _tcpPort;
 
 		public int TcpPort
 		{
 			get => _tcpPort;
 			set => SetValue(ref _tcpPort, value, nameof(TcpPort));
+		}
+
+		private string _commandDelimiter;
+
+		public string CommandDelimiter
+		{
+			get => _commandDelimiter;
+			set => SetValue(ref _commandDelimiter, value, nameof(CommandDelimiter));
+		}
+
+		private string _encryptionPhrase;
+
+		public string EncryptionPhrase
+		{
+			get => _encryptionPhrase;
+			set => SetValue(ref _encryptionPhrase, value, nameof(EncryptionPhrase));
 		}
 
 		private ICommand _saveCommand;
@@ -43,7 +51,8 @@ namespace App.Mobile.Remote.ViewModels
 		{
 			ApplicationSettings.UdpPort = UdpPort;
 			ApplicationSettings.TcpPort = TcpPort;
-			ApplicationSettings.BufferSize = BufferSize;
+			ApplicationSettings.EncryptionPhrase = EncryptionPhrase;
+			ApplicationSettings.CommandDelimiter = CommandDelimiter;
 
 			await ApplicationSettings.SaveAsync();
 		}
@@ -53,7 +62,8 @@ namespace App.Mobile.Remote.ViewModels
 		{
 			UdpPort = ApplicationSettings.UdpPort;
 			TcpPort = ApplicationSettings.TcpPort;
-			BufferSize = ApplicationSettings.BufferSize;
+			EncryptionPhrase = ApplicationSettings.EncryptionPhrase;
+			CommandDelimiter = ApplicationSettings.CommandDelimiter;
 
 			return Task.CompletedTask;
 		}

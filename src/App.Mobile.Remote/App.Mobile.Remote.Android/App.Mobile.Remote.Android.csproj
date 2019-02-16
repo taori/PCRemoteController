@@ -100,6 +100,10 @@
     <Folder Include="Resources\drawable-xxxhdpi\" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Toolkit\Toolkit.csproj">
+      <Project>{475e4c17-6ce3-4e7e-9dfd-b9245c97764c}</Project>
+      <Name>Toolkit</Name>
+    </ProjectReference>
     <ProjectReference Include="..\App.Mobile.Remote\App.Mobile.Remote.csproj">
       <Project>{311DBFEB-D909-4DFD-BAA7-DCE412811C0D}</Project>
       <Name>App.Mobile.Remote</Name>

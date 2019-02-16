@@ -18,6 +18,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\RemoteAgent.Common\RemoteAgent.Common.csproj" />
+    <ProjectReference Include="..\..\Toolkit\Toolkit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Update="Views\SettingsPage.xaml.cs">
       <DependentUpon>SettingsPage.xaml</DependentUpon>
     </Compile>

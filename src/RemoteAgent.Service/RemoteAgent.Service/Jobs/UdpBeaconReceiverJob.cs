@@ -27,7 +27,7 @@ namespace RemoteAgent.Service.Jobs
 		{
 			try
 			{
-				var beaconPort = ConfigurationManager.AppSettings["BeaconPort"];
+				var beaconPort = ConfigurationManager.AppSettings["UdpBeaconPort"];
 				if (!int.TryParse(beaconPort, out var parsedBeaconPort))
 				{
 					Logger.Error($"{beaconPort} is not a valid value for BeaconPort");
@@ -46,7 +46,7 @@ namespace RemoteAgent.Service.Jobs
 					while (!cancellationToken.IsCancellationRequested)
 					{
 						var receive = await broadcaster.ReceiveAsync();
-						Logger.Debug($"(<<<) [{receive.RemoteEndPoint.Prettify()}] {Encoding.UTF8.GetString(receive.Buffer)}");
+						Logger.Debug($"<--- [{receive.RemoteEndPoint.Prettify()}] {Encoding.UTF8.GetString(receive.Buffer)}");
 					}
 				}
 

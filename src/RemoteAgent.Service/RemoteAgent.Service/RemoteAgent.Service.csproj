@@ -50,4 +50,9 @@
     <Folder Include="Services\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\RemoteAgent.Common\RemoteAgent.Common.csproj" />
+    <ProjectReference Include="..\..\Toolkit\Toolkit.csproj" />
+  </ItemGroup>
+
 </Project>

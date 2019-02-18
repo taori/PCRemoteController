@@ -14,18 +14,31 @@
 	<Grid>
 		<Grid.RowDefinitions>
 			<RowDefinition  Height="Auto"/>
+			<RowDefinition  Height="Auto"/>
 			<RowDefinition  Height="*"/>
 		</Grid.RowDefinitions>
 
-		<Label Text="{Binding Path=AgentName}" />
+		<Label Grid.Row="0" Text="Commands" Margin="10,20,0,5" FontSize="Large" />
+		<Label Grid.Row="1" Text="{Binding Path=AgentName}" FontSize="Small" Margin="10,0,5,5" />
 
 		<ListView ItemsSource="{Binding Path=Commands}"
-				  Grid.Row="1"
+				  Grid.Row="2"
 		          CachingStrategy="RecycleElement">
+			<ListView.Behaviors>
+				<code:SelectDisableBehavior/>
+			</ListView.Behaviors>
 
 			<ListView.ItemTemplate>
 				<DataTemplate>
-					<TextCell Text="{Binding Path=Text}" Command="{Binding Path=Command}" />
+					<ViewCell>
+						<StackLayout Orientation="Vertical">
+							<Label Text="{Binding Path=Text}" TextColor="Black" Margin="10">
+								<Label.GestureRecognizers>
+									<TapGestureRecognizer Command="{Binding Path=Command}"></TapGestureRecognizer>
+								</Label.GestureRecognizers>
+							</Label>
+						</StackLayout>
+					</ViewCell>
 				</DataTemplate>
 			</ListView.ItemTemplate>
 		</ListView>

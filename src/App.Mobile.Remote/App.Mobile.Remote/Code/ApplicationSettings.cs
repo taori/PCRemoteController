@@ -1,9 +1,13 @@
-﻿using System.Threading.Tasks;
+﻿using System.Text;
+using System.Threading.Tasks;
 
 namespace App.Mobile.Remote.Code
 {
 	public static class ApplicationSettings
 	{
+		public static byte[] EncryptionKey => Encoding.UTF8.GetBytes(EncryptionPhrase);
+		public static byte[] EncryptionSalt => Encoding.UTF8.GetBytes(EncryptionInitializerVector);
+
 		public static int UdpPort
 		{
 			get
@@ -37,15 +41,31 @@ namespace App.Mobile.Remote.Code
 			}
 		}
 
+		public static string EncryptionInitializerVector
+		{
+			get
+			{
+				if (!Xamarin.Forms.Application.Current.Properties.TryGetValue("EncryptionInitializerVector", out var currentValue))
+					return "EncryptionInitializerVector";
+				if (currentValue is string casted)
+					return casted;
+				return "EncryptionInitializerVector";
+			}
+			set
+			{
+				Xamarin.Forms.Application.Current.Properties["EncryptionInitializerVector"] = value;
+			}
+		}
+
 		public static string EncryptionPhrase
 		{
 			get
 			{
 				if (!Xamarin.Forms.Application.Current.Properties.TryGetValue("EncryptionPhrase", out var currentValue))
-					return "A8EF92D6-4211-480B-A7DA-AE5F814362ED";
+					return "EncryptionPhrase";
 				if (currentValue is string casted)
 					return casted;
-				return "A8EF92D6-4211-480B-A7DA-AE5F814362ED";
+				return "EncryptionPhrase";
 			}
 			set
 			{

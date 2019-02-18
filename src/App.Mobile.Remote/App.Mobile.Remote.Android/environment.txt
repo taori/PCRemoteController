@@ -1,0 +1,2 @@
+﻿MONO_LOG_LEVEL=warning
+MONO_LOG_MASK=gc

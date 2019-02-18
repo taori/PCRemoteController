@@ -7,12 +7,16 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Disposables;
 using System.Reactive.Subjects;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using App.Mobile.Remote.Code;
+using App.Mobile.Remote.DependencyInjection;
 using RemoteAgent.Common;
+using RemoteAgent.Common.Commands;
+using Toolkit.Cryptography;
 using Toolkit.Pipelines;
 using Xamarin.Forms;
 using Application = Xamarin.Forms.PlatformConfiguration.AndroidSpecific.AppCompat.Application;
@@ -57,9 +61,6 @@ namespace App.Mobile.Remote.ViewModels
 		private Subject<PipeAdapter> _whenPipeAvailable;
 		public IObservable<PipeAdapter> WhenPipeAvailable => _whenPipeAvailable;
 
-		private Subject<PipeAdapter> _whenPipeDone;
-		public IObservable<PipeAdapter> WhenPipeDone => _whenPipeDone;
-
 		private ObservableCollection<TextCommandViewModel> _commands;
 
 		public ObservableCollection<TextCommandViewModel> Commands
@@ -87,29 +88,28 @@ namespace App.Mobile.Remote.ViewModels
 
 			_whenTcpLineReceived = new Subject<string>();
 			_whenPipeAvailable = new Subject<PipeAdapter>();
-			_whenPipeDone = new Subject<PipeAdapter>();
 
 			WhenTcpLineReceived.Subscribe(ReceivedContent);
 			WhenPipeAvailable.Subscribe(OnPipeAvailable);
-			WhenPipeDone.Subscribe(OnPipeDone);
 
 			Task.Run(() => InteractWithTcpClientAsync(), _cts.Token);
 
 			return Task.CompletedTask;
 		}
 
-		private void OnPipeDone(PipeAdapter pipe)
-		{
-			Log.Debug($"OnPipeDone");
-			Log.Debug($"Unbinding events.");
-			pipe.Received -= Received;
-		}
-
 		private async void OnPipeAvailable(PipeAdapter pipe)
 		{
 			Log.Debug($"{nameof(OnPipeAvailable)}.");
-			var command = new HelloCommand("Android").ToBytes(ApplicationSettings.EncryptionPhrase);
-			var sent = await pipe.Socket.SendAsync(new ArraySegment<byte>(command), SocketFlags.None);
+			await Task.Delay(100);
+			await SendCommandAsync(new HelloCommand("Android"));
+			await SendCommandAsync(new ListCommandsCommand());
+		}
+
+		private async Task SendCommandAsync(RemoteCommand command)
+		{
+			Log.Debug($"Sending command [{command.CommandName}].");
+			var bytes = command.ToBytes(ApplicationSettings.EncryptionPhrase, ApplicationSettings.CommandDelimiter);
+			var sent = await _tcpClient.Client.SendAsync(new ArraySegment<byte>(bytes), SocketFlags.None);
 			Log.Info($"message bytes sent: [{sent}].");
 		}
 
@@ -129,10 +129,8 @@ namespace App.Mobile.Remote.ViewModels
 		{
 			Log.Debug($"{nameof(DeactivateAsync)}");
 			_tcpClient?.Dispose();
-			_whenPipeDone.OnNext(_pipeAdapter);
 			_cts?.Cancel();
 			_cts?.Dispose();
-			_whenPipeDone?.Dispose();
 			_whenPipeAvailable?.Dispose();
 			_whenTcpLineReceived?.Dispose();
 		}
@@ -145,31 +143,77 @@ namespace App.Mobile.Remote.ViewModels
 
 			var settings = new PipeAdapterSettings();
 			settings.ExceptionHandler = e => Log.Error(e);
-			if (_pipeAdapter != null)
-				_whenPipeDone.OnNext(_pipeAdapter);
 
 			Log.Debug($"Creating IO-Pipe.");
 			var pipeAdapter = new PipeAdapter(_tcpClient.Client, settings);
-			_pipeAdapter = pipeAdapter;
+			pipeAdapter.Settings.PipeSequenceChunkifier = new PipeSequenceChunkifier(Encoding.UTF8.GetBytes(ApplicationSettings.CommandDelimiter), (byte)'\\');
+			pipeAdapter.Settings.ExceptionHandler = e => Log.Error(e);
 			pipeAdapter.Received += Received;
+			_pipeAdapter = pipeAdapter;
 
 			Log.Debug($"Connecting to server [{serverEndpoint}].");
 			await _tcpClient.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
+			Log.Debug($"Connection established [{_tcpClient.Client.LocalEndPoint}] [{_tcpClient.Client.RemoteEndPoint}].");
 
 			_whenPipeAvailable.OnNext(pipeAdapter);
 			while (!_cts.IsCancellationRequested && _tcpClient.Connected)
 			{
 				Log.Debug($"Processing input for [{serverEndpoint}].");
+				await Task.Delay(1);
 				await pipeAdapter.ExecuteAsync();
 			}
 
 			Log.Info("TCP Connection gone.");
 		}
 
-		private void Received(object sender, ReadOnlySequence<byte> e)
+		private async void Received(object sender, ReadOnlySequence<byte> e)
 		{
-			var line = e.ToString();
-			_whenTcpLineReceived.OnNext(line);
+			var converted = e.ToArray();
+			var receivedContent = Encoding.UTF8.GetString(converted);
+			Log.Debug(receivedContent);
+			var command = RemoteCommandFactory.FromBytes(converted);
+			if (command != null)
+			{
+				Log.Info($"Executing command [{command.CommandName}].");
+				Log.Debug($"Converting command to concrete type.");
+				await ProcessCommandAsync(command);
+			}
+		}
+
+		private Task ProcessCommandAsync(RemoteCommand command)
+		{
+//			var concrete = RemoteCommandFactory.FromCommand(command);
+			switch (command)
+			{
+				case HelloCommand helloCommand:
+					Log.Info($"Hello [{helloCommand.Who}]!");
+					break;
+				case ListCommandsResponseCommand commandsList:
+					LoadCommands(commandsList);
+					break;
+				case DisplayMessageCommand messageCommand:
+					var toastService = DependencyService.Get<IToastService>();
+					toastService.DisplayToast(messageCommand.Message);
+					
+					break;
+				default:
+					Log.Warn($"Command [{command.CommandName}] is not handled.");
+					break;
+			}
+
+			return Task.CompletedTask;
+		}
+
+		private void LoadCommands(ListCommandsResponseCommand commandsList)
+		{
+			Commands.Clear();
+			var commands = commandsList.Commands.Select(d => ConvertToCommand(d));
+			Commands = new ObservableCollection<TextCommandViewModel>(commands);
+		}
+
+		private TextCommandViewModel ConvertToCommand(RemoteCommand remoteCommand)
+		{
+			return new TextCommandViewModel(remoteCommand.CommandName, async (o) => await SendCommandAsync(remoteCommand));
 		}
 	}
 }

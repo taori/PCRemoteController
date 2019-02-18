@@ -65,6 +65,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DependencyInjection\ToastService.cs" />
     <Compile Include="MainActivity.cs" />
     <Compile Include="Resources\Resource.designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -108,6 +109,9 @@
       <Project>{311DBFEB-D909-4DFD-BAA7-DCE412811C0D}</Project>
       <Name>App.Mobile.Remote</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <AndroidEnvironment Include="environment.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\Xamarin\Android\Xamarin.Android.CSharp.targets" />
 </Project>

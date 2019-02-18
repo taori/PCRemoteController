@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.IO.Pipelines;
+using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
@@ -51,7 +52,7 @@ namespace Toolkit.Pipelines
 
 		private async Task FillPipeAsync(Socket socket, PipeWriter writer)
 		{
-			while (true)
+			while (socket.Connected)
 			{
 				var memory = writer.GetMemory(Settings.BufferSize);
 				try
@@ -65,6 +66,10 @@ namespace Toolkit.Pipelines
 					writer.Advance(bytesRead);
 				}
 				catch (ObjectDisposedException odex)
+				{
+					break;
+				}
+				catch (SocketException sex) when (ExpectedException(sex))
 				{
 					break;
 				}
@@ -85,6 +90,19 @@ namespace Toolkit.Pipelines
 			}
 
 			writer.Complete();
+		}
+
+		private static readonly SocketError[] ExpectedSocketErrors = {
+			SocketError.Disconnecting,
+			SocketError.ConnectionReset,
+			SocketError.ConnectionAborted
+		};
+
+		private bool ExpectedException(SocketException sex)
+		{
+			Settings?.ExceptionHandler?.Invoke(sex);
+
+			return ExpectedSocketErrors.Contains(sex.SocketErrorCode);
 		}
 
 		private async Task ReadPipeAsync(PipeReader reader)

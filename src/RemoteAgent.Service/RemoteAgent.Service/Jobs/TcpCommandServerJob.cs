@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.Configuration;
-using System.IO;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
@@ -12,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using RemoteAgent.Common;
 using RemoteAgent.Common.Commands;
+using RemoteAgent.Service.CommandHandling;
 using RemoteAgent.Service.Shell;
 using Toolkit.Pipelines;
 
@@ -116,36 +116,8 @@ namespace RemoteAgent.Service.Jobs
 
 		private async Task ProcessCommandAsync(RemoteCommand command, PipeAdapter adapter)
 		{
-//			var concrete = RemoteCommandFactory.FromCommand(command);
-
-			switch (command)
-			{
-				case HelloCommand helloCommand:
-					Logger.Info($"Hello [{helloCommand.Who}]!");
-					break;
-				case ListCommandsCommand listCommandsCommand:
-					var responseCommand = new ListCommandsResponseCommand(new []
-					{
-						new HelloCommand("Server"), 
-					});
-					await ExecuteCommandAsync(responseCommand, adapter);
-					await ExecuteCommandAsync(new DisplayMessageCommand("List loaded."), adapter);
-					break;
-				default:
-					Logger.Warn($"Command [{command.CommandName}] is not handled.");
-					break;
-			}
-		}
-
-		private async Task ExecuteCommandAsync(RemoteCommand remoteCommand, PipeAdapter adapter)
-		{
-			var encryptionKey = ConfigurationManager.AppSettings["EncryptionPhrase"];
-			var commandDelimiter = ConfigurationManager.AppSettings["CommandDelimiter"];
-			Logger.Info($"Sending command [{remoteCommand.CommandName}] to [{adapter.Socket.RemoteEndPoint}].");
-			var message = remoteCommand.ToBytes(encryptionKey, commandDelimiter);
-//			var sent = await adapter.Socket.SendAsync(new ArraySegment<byte>(message), SocketFlags.None);
-			var sent = await adapter.Socket.SendToAsync(new ArraySegment<byte>(message), SocketFlags.None, adapter.Socket.RemoteEndPoint);
-			Logger.Debug($"Sent [{sent}] bytes to [{adapter.Socket.RemoteEndPoint}].");
+			//			var concrete = RemoteCommandFactory.FromCommand(command);
+			await CommandHandler.HandleAsync(command, adapter);
 		}
 	}
 }

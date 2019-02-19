@@ -38,14 +38,15 @@ namespace Toolkit.Pipelines
 			Settings = settings;
 		}
 
+		private readonly Pipe Pipe = new Pipe();
+
 		/// <summary>
 		/// Executes read/write operations using the given socket
 		/// </summary>
 		public async Task ExecuteAsync()
 		{
-			var pipe = new Pipe();
-			var writing = FillPipeAsync(Socket, pipe.Writer);
-			var reading = ReadPipeAsync(pipe.Reader);
+			var writing = FillPipeAsync(Socket, Pipe.Writer);
+			var reading = ReadPipeAsync(Pipe.Reader);
 
 			await Task.WhenAll(reading, writing);
 		}

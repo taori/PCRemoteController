@@ -76,6 +76,7 @@ namespace RemoteAgent.Service.CommandHandling
 			using (var process = Process.Start("shutdown", "/s /t 60"))
 			{
 				process.StartInfo.CreateNoWindow = true;
+				process.StartInfo.UseShellExecute = false;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 			}
 		}
@@ -85,6 +86,7 @@ namespace RemoteAgent.Service.CommandHandling
 			using (var process = Process.Start("shutdown", "/r /t 60"))
 			{
 				process.StartInfo.CreateNoWindow = true;
+				process.StartInfo.UseShellExecute = false;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 			}
 		}
@@ -94,6 +96,7 @@ namespace RemoteAgent.Service.CommandHandling
 			using (var process = Process.Start("shutdown", "/a"))
 			{
 				process.StartInfo.CreateNoWindow = true;
+				process.StartInfo.UseShellExecute = false;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 			}
 		}

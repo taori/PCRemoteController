@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using System.Threading.Tasks;
 
-namespace App.Mobile.Remote.Code
+namespace App.Mobile.Remote.Utility
 {
 	public static class ApplicationSettings
 	{
@@ -70,22 +70,6 @@ namespace App.Mobile.Remote.Code
 			set
 			{
 				Xamarin.Forms.Application.Current.Properties["EncryptionPhrase"] = value;
-			}
-		}
-
-		public static string CommandDelimiter
-		{
-			get
-			{
-				if (!Xamarin.Forms.Application.Current.Properties.TryGetValue("CommandDelimiter", out var currentValue))
-					return "\n";
-				if (currentValue is string casted)
-					return casted;
-				return "\n";
-			}
-			set
-			{
-				Xamarin.Forms.Application.Current.Properties["CommandDelimiter"] = value;
 			}
 		}
 

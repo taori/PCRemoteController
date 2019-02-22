@@ -1,5 +1,6 @@
 ﻿using System;
 using Newtonsoft.Json;
+using RemoteAgent.Common.Serialization;
 
 namespace RemoteAgent.Common.Commands
 {
@@ -10,11 +11,17 @@ namespace RemoteAgent.Common.Commands
 			Parameters = new object[1];
 		}
 
+		public RestartCommand(TimeSpan? delay) : this()
+		{
+			Delay = new JsonSerializedType<TimeSpan?>(delay);
+		}
+
 		[JsonIgnore]
 		[ClientParameter]
-		public TimeSpan Delay
+		[JsonConverter(typeof(UnknownObjectConverter))]
+		public JsonSerializedType<TimeSpan?> Delay
 		{
-			get => (TimeSpan)Parameters[0];
+			get => (JsonSerializedType<TimeSpan?>)Parameters[0];
 			set => Parameters[0] = value;
 		}
 	}

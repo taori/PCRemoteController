@@ -12,18 +12,18 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using App.Mobile.Remote.Code;
 using App.Mobile.Remote.DependencyInjection;
+using App.Mobile.Remote.Utility;
+using App.Mobile.Remote.Views;
 using RemoteAgent.Common;
 using RemoteAgent.Common.Commands;
 using Toolkit.Cryptography;
 using Toolkit.Pipelines;
 using Xamarin.Forms;
-using Application = Xamarin.Forms.PlatformConfiguration.AndroidSpecific.AppCompat.Application;
 
 namespace App.Mobile.Remote.ViewModels
 {
-	public class AgentViewModel : ViewModelBase, IActivateable, IDeactivateble
+	public class AgentViewModel : ViewModelBase, IActivateable, IDeactivateble, INavigationAccess, IDisposable
 	{
 		private static readonly NLog.ILogger Log = NLog.LogManager.GetLogger(nameof(AgentViewModel));
 
@@ -35,12 +35,12 @@ namespace App.Mobile.Remote.ViewModels
 			set => SetValue(ref _agentName, value, nameof(AgentName));
 		}
 
-		private IPEndPoint _udpEndpoint;
+		private IPEndPoint _remoteEndpoint;
 
-		public IPEndPoint UdpEndpoint
+		public IPEndPoint RemoteEndpoint
 		{
-			get => _udpEndpoint;
-			set => SetValue(ref _udpEndpoint, value, nameof(UdpEndpoint));
+			get => _remoteEndpoint;
+			set => SetValue(ref _remoteEndpoint, value, nameof(RemoteEndpoint));
 		}
 
 		private DateTime _lastLifeSignal;
@@ -50,16 +50,16 @@ namespace App.Mobile.Remote.ViewModels
 			get => _lastLifeSignal;
 			set
 			{
-				if(SetValue(ref _lastLifeSignal, value, nameof(LastLifeSignal))) 
+				if (SetValue(ref _lastLifeSignal, value, nameof(LastLifeSignal)))
 					this.OnPropertyChanged(nameof(IsAlive));
 			}
 		}
 
-		private Subject<string> _whenTcpLineReceived;
+		private Subject<string> _whenTcpLineReceived = new Subject<string>();
 		public IObservable<string> WhenTcpLineReceived => _whenTcpLineReceived;
 
-		private Subject<PipeAdapter> _whenPipeAvailable;
-		public IObservable<PipeAdapter> WhenPipeAvailable => _whenPipeAvailable;
+		private Subject<RemoteCommand> _whenCommandTransmissionRequested = new Subject<RemoteCommand>();
+		public IObservable<RemoteCommand> WhenCommandTransmissionRequested => _whenCommandTransmissionRequested;
 
 		private ObservableCollection<TextCommandViewModel> _commands;
 
@@ -68,49 +68,48 @@ namespace App.Mobile.Remote.ViewModels
 			get => _commands ?? (_commands = new ObservableCollection<TextCommandViewModel>());
 			set => SetValue(ref _commands, value, nameof(Commands));
 		}
-		
-		public bool IsAlive => (DateTime.Now - LastLifeSignal).TotalSeconds < 20;
 
-		private PipeAdapter _pipeAdapter;
+		public bool IsAlive => (DateTime.Now - LastLifeSignal).TotalSeconds < 20;
 
 		private TcpClient _tcpClient;
 
-		private CompositeDisposable _disposables = new CompositeDisposable();
+		private CompositeDisposable _disposables;
 
-		/// <inheritdoc />
-		public Task ActivateAsync(bool activatedBefore)
+		public AgentViewModel(IPEndPoint remoteEndpoint)
+		{
+			this.RemoteEndpoint = remoteEndpoint;
+			BuildClientAsync();
+		}
+
+		private async void BuildClientAsync()
 		{
 			Log.Debug("Creating tcp client.");
 			_tcpClient = new TcpClient();
-
-			Log.Debug("Creating cancellation token.");
-			_cts = new CancellationTokenSource();
-
-			_whenTcpLineReceived = new Subject<string>();
-			_whenPipeAvailable = new Subject<PipeAdapter>();
-
-			WhenTcpLineReceived.Subscribe(ReceivedContent);
-			WhenPipeAvailable.Subscribe(OnPipeAvailable);
-
-			Task.Run(() => InteractWithTcpClientAsync(), _cts.Token);
-
-			return Task.CompletedTask;
+			await ConnectClientAsync(_tcpClient);
 		}
 
-		private async void OnPipeAvailable(PipeAdapter pipe)
+		/// <inheritdoc />
+		public async Task ActivateAsync(bool activatedBefore)
 		{
-			Log.Debug($"{nameof(OnPipeAvailable)}.");
-			await Task.Delay(100);
-			await SendCommandAsync(new HelloCommand("Android"));
+//			WhenTcpLineReceived.Subscribe(ReceivedContent);
+//			WhenCommandTransmissionRequested.Subscribe(CommandTransmissionRequested);
+			_disposables = new CompositeDisposable();
+			_disposables.Add(WhenTcpLineReceived.Subscribe(ReceivedContent));
+			_disposables.Add(WhenCommandTransmissionRequested.Subscribe(CommandTransmissionRequested));
 			await SendCommandAsync(new ListCommandsCommand());
+		}
+
+		private async void CommandTransmissionRequested(RemoteCommand command)
+		{
+			var adapter = new PipeAdapter(_tcpClient.Client, CreatePipeAdapterSettings());
+			var sent = await adapter.SendAsync(command.ToBytes(ApplicationSettings.EncryptionPhrase));
+			Log.Info($"message bytes sent: [{sent}].");
 		}
 
 		private async Task SendCommandAsync(RemoteCommand command)
 		{
 			Log.Debug($"Sending command [{command.CommandName}].");
-			var bytes = command.ToBytes(ApplicationSettings.EncryptionPhrase, ApplicationSettings.CommandDelimiter);
-			var sent = await _tcpClient.Client.SendAsync(new ArraySegment<byte>(bytes), SocketFlags.None);
-			Log.Info($"message bytes sent: [{sent}].");
+			_whenCommandTransmissionRequested.OnNext(command);
 		}
 
 		private void ReceivedContent(string content)
@@ -128,50 +127,50 @@ namespace App.Mobile.Remote.ViewModels
 		public async Task DeactivateAsync(bool activatedBefore)
 		{
 			Log.Debug($"{nameof(DeactivateAsync)}");
-			_tcpClient?.Dispose();
-			_cts?.Cancel();
-			_cts?.Dispose();
-			_whenPipeAvailable?.Dispose();
-			_whenTcpLineReceived?.Dispose();
+			_disposables.Dispose();
+			Deactivate?.Invoke(this, activatedBefore);
 		}
 
-		private CancellationTokenSource _cts = new CancellationTokenSource();
+		/// <inheritdoc />
+		public event EventHandler<bool> Deactivate;
 
-		private async Task InteractWithTcpClientAsync()
+		private async Task ConnectClientAsync(TcpClient client)
 		{
-			var serverEndpoint = new IPEndPoint(UdpEndpoint.Address, ApplicationSettings.TcpPort);
-
-			var settings = new PipeAdapterSettings();
-			settings.ExceptionHandler = e => Log.Error(e);
+			var settings = CreatePipeAdapterSettings();
 
 			Log.Debug($"Creating IO-Pipe.");
-			var pipeAdapter = new PipeAdapter(_tcpClient.Client, settings);
-			pipeAdapter.Settings.PipeSequenceChunkifier = new PipeSequenceChunkifier(Encoding.UTF8.GetBytes(ApplicationSettings.CommandDelimiter), (byte)'\\');
+			var pipeAdapter = new PipeAdapter(client.Client, settings);
+			pipeAdapter.Settings.PipeSequenceChunkifier = new PipeSequenceChunkifier(Encoding.UTF8.GetBytes("\n"));
 			pipeAdapter.Settings.ExceptionHandler = e => Log.Error(e);
 			pipeAdapter.Received += Received;
-			_pipeAdapter = pipeAdapter;
 
-			Log.Debug($"Connecting to server [{serverEndpoint}].");
-			await _tcpClient.ConnectAsync(serverEndpoint.Address, serverEndpoint.Port);
-			Log.Debug($"Connection established [{_tcpClient.Client.LocalEndPoint}] [{_tcpClient.Client.RemoteEndPoint}].");
+			Log.Debug($"Connecting to server [{RemoteEndpoint}].");
+			await client.ConnectAsync(RemoteEndpoint.Address, RemoteEndpoint.Port);
+			Log.Debug($"Connection established [{client.Client.LocalEndPoint}] [{client.Client.RemoteEndPoint}].");
 
-			_whenPipeAvailable.OnNext(pipeAdapter);
-			while (!_cts.IsCancellationRequested && _tcpClient.Connected)
+			if (client.Connected)
 			{
-				Log.Debug($"Processing input for [{serverEndpoint}].");
-				await Task.Delay(1);
-				await pipeAdapter.ExecuteAsync();
+				Log.Debug($"Processing input for [{RemoteEndpoint}].");
+				await pipeAdapter.ListenAsync();
 			}
 
 			Log.Info("TCP Connection gone.");
 		}
 
-		private async void Received(object sender, ReadOnlySequence<byte> e)
+		private static PipeAdapterSettings CreatePipeAdapterSettings()
 		{
-			var converted = e.ToArray();
-			var receivedContent = Encoding.UTF8.GetString(converted);
+			var settings = new PipeAdapterSettings();
+			settings.ExceptionHandler = e => Log.Error(e);
+			return settings;
+		}
+
+		private async void Received(object sender, byte[] data)
+		{
+			Log.Debug($"Receiving content from server.");
+
+			var receivedContent = Encoding.UTF8.GetString(data);
 			Log.Debug(receivedContent);
-			var command = RemoteCommandFactory.FromBytes(converted);
+			var command = RemoteCommandFactory.FromBytes(data);
 			if (command != null)
 			{
 				Log.Info($"Executing command [{command.CommandName}].");
@@ -182,7 +181,6 @@ namespace App.Mobile.Remote.ViewModels
 
 		private Task ProcessCommandAsync(RemoteCommand command)
 		{
-//			var concrete = RemoteCommandFactory.FromCommand(command);
 			switch (command)
 			{
 				case HelloCommand helloCommand:
@@ -194,7 +192,6 @@ namespace App.Mobile.Remote.ViewModels
 				case DisplayMessageCommand messageCommand:
 					var toastService = DependencyService.Get<IToastService>();
 					toastService.DisplayToast(messageCommand.Message);
-					
 					break;
 				default:
 					Log.Warn($"Command [{command.CommandName}] is not handled.");
@@ -213,7 +210,24 @@ namespace App.Mobile.Remote.ViewModels
 
 		private TextCommandViewModel ConvertToCommand(RemoteCommand remoteCommand)
 		{
-			return new TextCommandViewModel(remoteCommand.CommandName, async (o) => await SendCommandAsync(remoteCommand));
+			return new TextCommandViewModel(remoteCommand.CommandName, async (o) =>
+			{
+				if (UpdateCommandViewModel.CanHandle(remoteCommand))
+					await this.NavigationProxy.PushModelModalAsync(new UpdateCommandModelPage(), new UpdateCommandViewModel(remoteCommand));
+				await SendCommandAsync(remoteCommand);
+			});
+		}
+
+		/// <inheritdoc />
+		public INavigation NavigationProxy { get; set; }
+
+		/// <inheritdoc />
+		public void Dispose()
+		{
+			_whenTcpLineReceived?.Dispose();
+			_whenCommandTransmissionRequested?.Dispose();
+			_tcpClient?.Dispose();
+			_disposables?.Dispose();
 		}
 	}
 }

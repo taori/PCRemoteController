@@ -11,7 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using App.Mobile.Remote.Code;
+using App.Mobile.Remote.Utility;
 using App.Mobile.Remote.Views;
 using Xamarin.Forms;
 
@@ -35,6 +35,13 @@ namespace App.Mobile.Remote.ViewModels
 			set => SetValue(ref _anyAgentAvailable, value, nameof(AnyAgentAvailable));
 		}
 
+		private string _title;
+
+		public string Title
+		{
+			get => _title;
+			set => SetValue(ref _title, value, nameof(Title));
+		}
 
 		private UdpClient _beaconReceiver;
 
@@ -44,6 +51,7 @@ namespace App.Mobile.Remote.ViewModels
 		/// <inheritdoc />
 		public async Task ActivateAsync(bool activatedBefore)
 		{
+			Title = $"Agents connected to UDP port {ApplicationSettings.UdpPort}.";
 			_beaconReceiver?.Dispose();
 			if (activatedBefore)
 				return;
@@ -62,7 +70,8 @@ namespace App.Mobile.Remote.ViewModels
 
 		private void MessageReceivedCallback(UdpReceiveResult udpReceive)
 		{
-			var agentMatch = Agents.FirstOrDefault(d => d.UdpEndpoint.Equals(udpReceive.RemoteEndPoint));
+			var remoteTcpPort = new IPEndPoint(udpReceive.RemoteEndPoint.Address, ApplicationSettings.TcpPort);
+			var agentMatch = Agents.FirstOrDefault(d => d.RemoteEndpoint.Equals(remoteTcpPort));
 			if (agentMatch == null)
 			{
 				var message = Encoding.UTF8.GetString(udpReceive.Buffer);
@@ -70,10 +79,9 @@ namespace App.Mobile.Remote.ViewModels
 					return;
 
 				var name = UdpReceivePattern.Match(message).Groups["agent"].Value;
-				Agents.Add(new AgentViewModel()
+				Agents.Add(new AgentViewModel(remoteTcpPort)
 				{
-					AgentName = $"{name} @ {udpReceive.RemoteEndPoint}",
-					UdpEndpoint = udpReceive.RemoteEndPoint,
+					AgentName = $"{name} @ {remoteTcpPort}",
 					LastLifeSignal = DateTime.Now
 				});
 			}

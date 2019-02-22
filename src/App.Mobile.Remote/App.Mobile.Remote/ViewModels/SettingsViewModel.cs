@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using System.Windows.Input;
-using App.Mobile.Remote.Code;
+using App.Mobile.Remote.Utility;
 using Xamarin.Forms;
 
 namespace App.Mobile.Remote.ViewModels
@@ -21,14 +21,6 @@ namespace App.Mobile.Remote.ViewModels
 		{
 			get => _tcpPort;
 			set => SetValue(ref _tcpPort, value, nameof(TcpPort));
-		}
-
-		private string _commandDelimiter;
-
-		public string CommandDelimiter
-		{
-			get => _commandDelimiter;
-			set => SetValue(ref _commandDelimiter, value, nameof(CommandDelimiter));
 		}
 
 		private string _encryptionPhrase;
@@ -52,7 +44,6 @@ namespace App.Mobile.Remote.ViewModels
 			ApplicationSettings.UdpPort = UdpPort;
 			ApplicationSettings.TcpPort = TcpPort;
 			ApplicationSettings.EncryptionPhrase = EncryptionPhrase;
-			ApplicationSettings.CommandDelimiter = CommandDelimiter;
 
 			await ApplicationSettings.SaveAsync();
 		}
@@ -63,7 +54,6 @@ namespace App.Mobile.Remote.ViewModels
 			UdpPort = ApplicationSettings.UdpPort;
 			TcpPort = ApplicationSettings.TcpPort;
 			EncryptionPhrase = ApplicationSettings.EncryptionPhrase;
-			CommandDelimiter = ApplicationSettings.CommandDelimiter;
 
 			return Task.CompletedTask;
 		}

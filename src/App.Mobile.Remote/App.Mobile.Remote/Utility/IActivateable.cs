@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace App.Mobile.Remote.Code
+namespace App.Mobile.Remote.Utility
 {
 	public interface IActivateable
 	{

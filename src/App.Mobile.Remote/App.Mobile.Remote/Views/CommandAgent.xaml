@@ -4,12 +4,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:App.Mobile.Remote.ViewModels;assembly=App.Mobile.Remote"
-             xmlns:code="clr-namespace:App.Mobile.Remote.Code;assembly=App.Mobile.Remote"
+             xmlns:utility="clr-namespace:App.Mobile.Remote.Utility;assembly=App.Mobile.Remote"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance viewModels:AgentViewModel}"
              x:Class="App.Mobile.Remote.Views.CommandAgent">
 	<ContentPage.Behaviors>
-		<code:AppearingActivatorBehavior />
+		<utility:AppearingActivatorBehavior />
 	</ContentPage.Behaviors>
 	<Grid>
 		<Grid.RowDefinitions>
@@ -25,7 +25,7 @@
 				  Grid.Row="2"
 		          CachingStrategy="RecycleElement">
 			<ListView.Behaviors>
-				<code:SelectDisableBehavior/>
+				<utility:SelectDisableBehavior/>
 			</ListView.Behaviors>
 
 			<ListView.ItemTemplate>

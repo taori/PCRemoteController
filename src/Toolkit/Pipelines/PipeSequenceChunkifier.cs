@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -12,17 +13,14 @@ namespace Toolkit.Pipelines
 	{
 		public byte[] Delimiter { get; }
 
-		public byte EscapeSymbol { get; }
-
 		/// <inheritdoc />
-		public PipeSequenceChunkifier(byte[] delimiter, byte escapeSymbol)
+		public PipeSequenceChunkifier(byte[] delimiter)
 		{
 			if (delimiter == null || delimiter.Length <= 0) throw new ArgumentException($"Invalid delimiter.");
 			Delimiter = delimiter;
-			EscapeSymbol = escapeSymbol;
 		}
 
-		public PipeSequenceChunkifier() : this(new[]{(byte)'\n'}, (byte)'\\')
+		public PipeSequenceChunkifier() : this(new[] { (byte)'\n' })
 		{
 		}
 
@@ -33,33 +31,47 @@ namespace Toolkit.Pipelines
 		/// <returns></returns>
 		public virtual SequenceChunk? Execute(ReadOnlySequence<byte> buffer)
 		{
-			var sequencePosition = buffer.PositionOf(Delimiter[0]);
+			var originalPosition = buffer.PositionOf(Delimiter[0]);
+			if (originalPosition == null)
+				return null;
+
+			var whiteSpan = new ReadOnlySpan<byte>(Delimiter);
+
+			var sequencePosition = FindDelimittedPosition(buffer, originalPosition.Value.GetObject(), whiteSpan);
 			if (sequencePosition == null)
 				return null;
 
 			if (Delimiter.Length > 1)
-			{
-				if (buffer.Length < Delimiter.Length)
-					return null;
-
-				var current = buffer.Slice(sequencePosition.Value.GetInteger(), Delimiter.Length);
-				var before = buffer.Slice(sequencePosition.Value.GetInteger() - 1, 1);
-				if (before.ToArray()[0] == EscapeSymbol)
-					return null;
-
-				for (int i = 0; i < current.Length; i++)
-				{
-					if (current.Slice(i, 1).ToArray()[0] != Delimiter[i])
-						return null;
-				}
-
-//				var position = new SequencePosition(sequencePosition.Value.GetObject(), sequencePosition.Value.GetInteger());
 				return new SequenceChunk(sequencePosition.Value, Delimiter.Length);
+
+			return new SequenceChunk(sequencePosition.Value, 1);
+		}
+
+		private SequencePosition? FindDelimittedPosition(in ReadOnlySequence<byte> buffer, object bufferSegment, ReadOnlySpan<byte> whiteSpan)
+		{
+			if (buffer.IsSingleSegment)
+			{
+				var position = GetPositionInSpan(buffer.First.Span, whiteSpan);
+				if (position >= 0)
+					return new SequencePosition(bufferSegment, position);
 			}
 			else
 			{
-				return new SequenceChunk(sequencePosition.Value, 1);
+				var start = buffer.Start;
+				while (buffer.TryGet(ref start, out var memory, true))
+				{
+					if(GetPositionInSpan(memory.Span, whiteSpan) is var position && position >= 0)
+						return new SequencePosition(bufferSegment, position);
+				}
 			}
+
+			return null;
+		}
+
+		private int GetPositionInSpan(in ReadOnlySpan<byte> firstSpan, in ReadOnlySpan<byte> whiteSpan)
+		{
+			var whiteMatch = firstSpan.IndexOf(whiteSpan);
+			return whiteMatch;
 		}
 	}
 }

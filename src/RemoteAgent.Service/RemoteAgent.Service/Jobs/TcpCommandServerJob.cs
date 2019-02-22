@@ -79,33 +79,33 @@ namespace RemoteAgent.Service.Jobs
 		{
 			try
 			{
-				var delimiter = ConfigurationManager.AppSettings["CommandDelimiter"];
-				Logger.Info($"Delimiter [{delimiter}] is used to delimit commands.");
 				var adapter = new PipeAdapter(socket);
-				adapter.Settings.PipeSequenceChunkifier = new PipeSequenceChunkifier(Encoding.UTF8.GetBytes(delimiter), (byte)'\\');
+				adapter.Settings.PipeSequenceChunkifier = new PipeSequenceChunkifier(Encoding.UTF8.GetBytes("\n"));
+
 				adapter.Settings.ExceptionHandler = e => Logger.Error(e);
 				adapter.Received += AdapterOnReceived;
-				while (!cancellationToken.IsCancellationRequested && socket.Connected)
-				{
-					await Task.Delay(1);
-					await adapter.ExecuteAsync();
-				}
 
-				Logger.Info($"Disconnecting client [{socket.RemoteEndPoint}].");
-				socket.Disconnect(true);
-				Logger.Info($"Client disconnected [{socket.RemoteEndPoint}].");
+				if (socket.Connected)
+					await adapter.ListenAsync();
 			}
-			catch (OperationCanceledException) { }
+			catch (OperationCanceledException)
+			{
+			}
 			catch (Exception e)
 			{
 				Logger.Error(e);
 			}
+			finally
+			{
+				if (socket.Connected)
+					socket.Disconnect(true);
+				Logger.Info($"Client disconnected [{socket.RemoteEndPoint}].");
+			}
 		}
 
-		private async void AdapterOnReceived(object sender, ReadOnlySequence<byte> e)
+		private async void AdapterOnReceived(object sender, byte[] data)
 		{
-			var converted = e.ToArray();
-			var command = RemoteCommandFactory.FromBytes(converted);
+			var command = RemoteCommandFactory.FromBytes(data);
 			if (command != null)
 			{
 				Logger.Info($"Executing command [{command.CommandName}].");
@@ -117,7 +117,7 @@ namespace RemoteAgent.Service.Jobs
 		private async Task ProcessCommandAsync(RemoteCommand command, PipeAdapter adapter)
 		{
 			//			var concrete = RemoteCommandFactory.FromCommand(command);
-			await CommandHandler.HandleAsync(command, adapter);
+			await CommandHandler.HandleAsync(command, adapter.Socket);
 		}
 	}
 }

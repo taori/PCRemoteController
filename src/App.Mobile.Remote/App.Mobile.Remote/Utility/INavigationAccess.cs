@@ -1,6 +1,6 @@
 ﻿using Xamarin.Forms;
 
-namespace App.Mobile.Remote.Code
+namespace App.Mobile.Remote.Utility
 {
 	public interface INavigationAccess
 	{

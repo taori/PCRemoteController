@@ -1,7 +1,8 @@
 ﻿using System;
+using App.Mobile.Remote.Views;
 using Xamarin.Forms;
 
-namespace App.Mobile.Remote.Code
+namespace App.Mobile.Remote.Utility
 {
 	public class AppearingActivatorBehavior : Behavior<Page>
 	{
@@ -53,15 +54,17 @@ namespace App.Mobile.Remote.Code
 		{
 			if (sender is Page page)
 			{
+				if (page.BindingContext is INavigationAccess navigationAccess)
+				{
+//					var mainPage = Xamarin.Forms.Application.Current.MainPage;
+					var topMostPage = GetTopMostPage(page);
+					navigationAccess.NavigationProxy = topMostPage.Navigation;
+				}
+
 				if (page.BindingContext is IActivateable activateable)
 				{
 					await activateable.ActivateAsync((bool)this.GetValue(ActivatedBeforeProperty));
 					this.SetValue(ActivatedBeforeProperty, true);
-				}
-				if (page.BindingContext is INavigationAccess navigationAccess)
-				{
-					var topMostPage = GetTopMostPage(page);
-					navigationAccess.NavigationProxy = topMostPage.Navigation;
 				}
 			}
 		}

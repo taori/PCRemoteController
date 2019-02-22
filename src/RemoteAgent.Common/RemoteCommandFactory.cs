@@ -30,16 +30,5 @@ namespace RemoteAgent.Common
 			var deserialized = JsonConvert.DeserializeObject<RemoteCommand>(serialized, settings);
 			return deserialized;
 		}
-
-		public static RemoteCommand FromCommand(RemoteCommand command)
-		{
-			if(!CommandGeneratorLookup.TryGetValue(command.CommandId, out var generator))
-				throw new Exception($"Cannot generate type from {command.CommandId}.");
-
-			var generated = generator.Invoke();
-			generated.UpdateFrom(command);
-
-			return generated;
-		}
 	}
 }

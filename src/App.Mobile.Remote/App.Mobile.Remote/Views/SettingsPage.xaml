@@ -2,13 +2,13 @@
 <ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:viewModels="clr-namespace:App.Mobile.Remote.ViewModels;assembly=App.Mobile.Remote"
-             xmlns:code="clr-namespace:App.Mobile.Remote.Code;assembly=App.Mobile.Remote"
+             xmlns:utility="clr-namespace:App.Mobile.Remote.Utility;assembly=App.Mobile.Remote"
              x:Class="App.Mobile.Remote.Views.SettingsPage">
 	<ContentPage.BindingContext>
 		<viewModels:SettingsViewModel/>
 	</ContentPage.BindingContext>
 	<ContentPage.Behaviors>
-		<code:AppearingActivatorBehavior/>
+		<utility:AppearingActivatorBehavior/>
 	</ContentPage.Behaviors>
 	<ContentPage.Content>
 		<Grid>
@@ -21,8 +21,6 @@
 				<Entry Text="{Binding Path=UdpPort, Mode=TwoWay}" Keyboard="Numeric"/>
 				<Label Text="TCP port:" />
 				<Entry Text="{Binding Path=TcpPort, Mode=TwoWay}" Keyboard="Numeric"/>
-				<Label Text="Command delimiter:" />
-				<Entry Text="{Binding Path=CommandDelimiter, Mode=TwoWay}" Keyboard="Text"/>
 				<Label Text="Encryption phrase:" />
 				<Entry Text="{Binding Path=EncryptionPhrase, Mode=TwoWay}" Keyboard="Text"/>
 			</StackLayout>

@@ -2,12 +2,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:viewModels="clr-namespace:App.Mobile.Remote.ViewModels;assembly=App.Mobile.Remote"
              xmlns:views="clr-namespace:App.Mobile.Remote.Views;assembly=App.Mobile.Remote"
-             xmlns:code="clr-namespace:App.Mobile.Remote.Code;assembly=App.Mobile.Remote"
+             xmlns:utility="clr-namespace:App.Mobile.Remote.Utility;assembly=App.Mobile.Remote"
              BackgroundColor="White"
 			 x:Name="Self"
              x:Class="App.Mobile.Remote.Views.AvailableRemoteAgents">
 	<ContentPage.Behaviors>
-		<code:AppearingActivatorBehavior></code:AppearingActivatorBehavior>
+		<utility:AppearingActivatorBehavior></utility:AppearingActivatorBehavior>
 	</ContentPage.Behaviors>
 	<ContentPage.BindingContext>
 		<viewModels:AvailableRemoteAgentsViewModel />
@@ -18,8 +18,8 @@
 			<RowDefinition Height="*"/>
 		</Grid.RowDefinitions>
 		<StackLayout HorizontalOptions="Center" Orientation="Horizontal" IsVisible="{Binding Path=AnyAgentAvailable, Converter={StaticResource BooleanInversionConverter}, Mode=OneWay}">
-			<Label TextColor="Black" Text="Loading agents" VerticalOptions="Center" FontSize="Large" Margin="0,0,10,0"/>
-			<ActivityIndicator IsRunning="True" Color="Black" Margin="0,10"/>
+			<Label TextColor="Black" Text="{Binding Path=Title}" VerticalOptions="Center" FontSize="Large" Margin="0,0,10,0"/>
+			<!-- <ActivityIndicator IsRunning="True" Color="Black" Margin="0,10"/> -->
 		</StackLayout>
 		<ListView 
 			Grid.Row="1"

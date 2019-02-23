@@ -25,9 +25,9 @@ namespace RemoteAgent.Common.Commands
 		}
 
 		[JsonIgnore]
-		public int ProcessId
+		public long ProcessId
 		{
-			get => (int)Parameters[1];
+			get => (long)Parameters[1];
 			set => Parameters[1] = value;
 		}
 	}

@@ -52,9 +52,12 @@ namespace RemoteAgent.Service.CommandHandling
 					break;
 				case LaunchProcessCommand concrete:
 					HandleLaunchProcess(concrete);
+					await Task.Delay(300);
+					await HandleListCommands(socket);
 					break;
 				case KillProcessCommand concrete:
 					HandleKillProcess(concrete);
+					await HandleListCommands(socket);
 					break;
 				default:
 					Logger.Warn($"Command [{command.CommandName}] is not handled.");
@@ -64,12 +67,13 @@ namespace RemoteAgent.Service.CommandHandling
 
 		private static void HandleKillProcess(KillProcessCommand concrete)
 		{
-			var id = (int) concrete.Parameters[1];
+			var id = (long) concrete.Parameters[1];
 			using (var process = Process.Start("taskkill", $"/PID {concrete.ProcessId}"))
 			{
 				process.StartInfo.CreateNoWindow = true;
 				process.StartInfo.UseShellExecute = false;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+				process.WaitForExit();
 			}
 		}
 

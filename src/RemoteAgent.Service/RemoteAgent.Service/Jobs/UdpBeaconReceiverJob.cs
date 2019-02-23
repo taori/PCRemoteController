@@ -15,19 +15,47 @@ namespace RemoteAgent.Service.Jobs
 		/// <inheritdoc />
 		public override void OnShutdown()
 		{
+			AbortThread();
+		}
+
+		private bool _aborting;
+
+		private void AbortThread()
+		{
+			if (_aborting)
+				return;
+
+			_aborting = true;
+			_thread.Interrupt();
+			_thread.Join(5000);
+			_thread.Abort();
 		}
 
 		/// <inheritdoc />
 		public override void Dispose(bool disposing)
 		{
+			AbortThread();
 		}
+
+		private Thread _thread;
+
+		private CancellationToken _cancellation;
 
 		/// <inheritdoc />
 		public override async Task WorkAsync(string[] args, CancellationToken cancellationToken)
 		{
+			_cancellation = cancellationToken;
+			_thread = new Thread(DoWork);
+			_thread.IsBackground = true;
+			_thread.Start();
+		}
+
+		private async void DoWork()
+		{
 			try
 			{
 				var beaconPort = ConfigurationManager.AppSettings["UdpBeaconPort"];
+				Logger.Info($"{nameof(UdpBeaconReceiverJob)} is listening to [{beaconPort}].");
 				if (!int.TryParse(beaconPort, out var parsedBeaconPort))
 				{
 					Logger.Error($"{beaconPort} is not a valid value for BeaconPort");
@@ -43,7 +71,7 @@ namespace RemoteAgent.Service.Jobs
 					broadcaster.Client.Bind(ep);
 					Logger.Info($"Binding ({nameof(UdpBeaconReceiverJob)}) on [{ep}]");
 
-					while (!cancellationToken.IsCancellationRequested)
+					while (!_cancellation.IsCancellationRequested)
 					{
 						var receive = await broadcaster.ReceiveAsync();
 						Logger.Debug($"<--- [{receive.RemoteEndPoint.Prettify()}] {Encoding.UTF8.GetString(receive.Buffer)}");

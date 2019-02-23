@@ -19,20 +19,46 @@ namespace RemoteAgent.Service.Jobs
 {
 	public class TcpCommandServerJob : JobBase
 	{
+		private Thread _thread;
+		private TcpListener _tcpListener;
+		private CancellationToken _cancellation;
+		
+		private bool _aborting;
+
+		private void AbortThread()
+		{
+			if (_aborting)
+				return;
+
+			_aborting = true;
+			_thread.Interrupt();
+			_thread.Join(5000);
+			_thread.Abort();
+		}
+
 		/// <inheritdoc />
 		public override void OnShutdown()
 		{
+			AbortThread();
 		}
 
 		/// <inheritdoc />
 		public override void Dispose(bool disposing)
 		{
+			AbortThread();
 		}
 
 		/// <inheritdoc />
 		public override async Task WorkAsync(string[] args, CancellationToken cancellationToken)
 		{
-			TcpListener listener = null;
+			_cancellation = cancellationToken;
+			_thread = new Thread(DoWork);
+			_thread.IsBackground = true;
+			_thread.Start();
+		}
+
+		private async void DoWork(object cancellationToken)
+		{
 			try
 			{
 				var port = ConfigurationManager.AppSettings["TcpListenerPort"] ?? "8087";
@@ -51,16 +77,16 @@ namespace RemoteAgent.Service.Jobs
 
 				var localIp = Dns.GetHostAddresses(Dns.GetHostName()).FirstOrDefault(d => d.AddressFamily == AddressFamily.InterNetwork);
 				Logger.Info($"Binding TcpListener to [{localIp}].");
-				listener = new TcpListener(new IPEndPoint(localIp, parsedPort));
+				_tcpListener = new TcpListener(new IPEndPoint(localIp, parsedPort));
 				Logger.Info($"Starting listener with backlog [{parsedBacklogsize}].");
-				listener.Start(parsedBacklogsize);
+				_tcpListener.Start(parsedBacklogsize);
 
-				while (!cancellationToken.IsCancellationRequested)
+				while (!_cancellation.IsCancellationRequested)
 				{
 					Logger.Debug($"Waiting for client on [{parsedPort}].");
-					var remoteSocket = await listener.AcceptSocketAsync();
+					var remoteSocket = await _tcpListener.AcceptSocketAsync();
 					Logger.Info($"Client connected [{remoteSocket.RemoteEndPoint}].");
-					HandleSocketAsync(remoteSocket, cancellationToken);
+					HandleSocketAsync(remoteSocket, _cancellation);
 				}
 			}
 			catch (Exception e)
@@ -71,7 +97,7 @@ namespace RemoteAgent.Service.Jobs
 			finally
 			{
 				Logger.Info($"[{nameof(TcpCommandServerJob)}] Shutting down listener.");
-				listener?.Stop();
+				_tcpListener?.Stop();
 			}
 		}
 

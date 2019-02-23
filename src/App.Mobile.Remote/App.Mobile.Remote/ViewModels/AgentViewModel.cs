@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Security.Cryptography;
 using System.Text;
@@ -55,9 +57,6 @@ namespace App.Mobile.Remote.ViewModels
 			}
 		}
 
-		private Subject<string> _whenTcpLineReceived = new Subject<string>();
-		public IObservable<string> WhenTcpLineReceived => _whenTcpLineReceived;
-
 		private Subject<RemoteCommand> _whenCommandTransmissionRequested = new Subject<RemoteCommand>();
 		public IObservable<RemoteCommand> WhenCommandTransmissionRequested => _whenCommandTransmissionRequested;
 
@@ -94,7 +93,6 @@ namespace App.Mobile.Remote.ViewModels
 //			WhenTcpLineReceived.Subscribe(ReceivedContent);
 //			WhenCommandTransmissionRequested.Subscribe(CommandTransmissionRequested);
 			_disposables = new CompositeDisposable();
-			_disposables.Add(WhenTcpLineReceived.Subscribe(ReceivedContent));
 			_disposables.Add(WhenCommandTransmissionRequested.Subscribe(CommandTransmissionRequested));
 			await SendCommandAsync(new ListCommandsCommand());
 		}
@@ -110,17 +108,6 @@ namespace App.Mobile.Remote.ViewModels
 		{
 			Log.Debug($"Sending command [{command.CommandName}].");
 			_whenCommandTransmissionRequested.OnNext(command);
-		}
-
-		private void ReceivedContent(string content)
-		{
-			Commands.Add(new TextCommandViewModel(content, Command));
-			Log.Info($"Received command: {content}");
-		}
-
-		private void Command(object obj)
-		{
-			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc />
@@ -143,6 +130,8 @@ namespace App.Mobile.Remote.ViewModels
 			pipeAdapter.Settings.PipeSequenceChunkifier = new PipeSequenceChunkifier(Encoding.UTF8.GetBytes("\n"));
 			pipeAdapter.Settings.ExceptionHandler = e => Log.Error(e);
 			pipeAdapter.Received += Received;
+
+			client.ReceiveBufferSize = 5 * 1024 * 1024;
 
 			Log.Debug($"Connecting to server [{RemoteEndpoint}].");
 			await client.ConnectAsync(RemoteEndpoint.Address, RemoteEndpoint.Port);
@@ -224,7 +213,6 @@ namespace App.Mobile.Remote.ViewModels
 		/// <inheritdoc />
 		public void Dispose()
 		{
-			_whenTcpLineReceived?.Dispose();
 			_whenCommandTransmissionRequested?.Dispose();
 			_tcpClient?.Dispose();
 			_disposables?.Dispose();

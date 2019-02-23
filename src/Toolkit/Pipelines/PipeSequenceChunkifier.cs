@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using NLog;
 
 namespace Toolkit.Pipelines
 {
@@ -11,6 +12,8 @@ namespace Toolkit.Pipelines
 	/// </summary>
 	public class PipeSequenceChunkifier
 	{
+		private static readonly ILogger Log = LogManager.GetLogger(nameof(PipeSequenceChunkifier));
+
 		public byte[] Delimiter { get; }
 
 		/// <inheritdoc />
@@ -35,16 +38,29 @@ namespace Toolkit.Pipelines
 			if (originalPosition == null)
 				return null;
 
-			var whiteSpan = new ReadOnlySpan<byte>(Delimiter);
+#if true
+			var data = Encoding.UTF8.GetString(buffer.ToArray());
+			Log.Trace($"Chunked: {data}");
+#endif
 
-			var sequencePosition = FindDelimittedPosition(buffer, originalPosition.Value.GetObject(), whiteSpan);
-			if (sequencePosition == null)
-				return null;
+			if (Delimiter.Length == 1)
+			{
+				return new SequenceChunk(originalPosition.Value, 1);
+			}
+			else
+			{
+				throw new NotSupportedException("The following code does not support multi character delimiters yet, because with multi segment code the position does not work properly.");
+				var whiteSpan = new ReadOnlySpan<byte>(Delimiter);
 
-			if (Delimiter.Length > 1)
-				return new SequenceChunk(sequencePosition.Value, Delimiter.Length);
+				var sequencePosition = FindDelimittedPosition(buffer, originalPosition.Value.GetObject(), whiteSpan);
+				if (sequencePosition == null)
+					return null;
 
-			return new SequenceChunk(sequencePosition.Value, 1);
+				if (Delimiter.Length > 1)
+					return new SequenceChunk(sequencePosition.Value, Delimiter.Length);
+
+				return new SequenceChunk(sequencePosition.Value, 1);
+			}
 		}
 
 		private SequencePosition? FindDelimittedPosition(in ReadOnlySequence<byte> buffer, object bufferSegment, ReadOnlySpan<byte> whiteSpan)

@@ -113,11 +113,19 @@ namespace RemoteAgent.Service.Jobs
 				await ProcessCommandAsync(command, sender as PipeAdapter);
 			}
 		}
-
+		
 		private async Task ProcessCommandAsync(RemoteCommand command, PipeAdapter adapter)
 		{
-			//			var concrete = RemoteCommandFactory.FromCommand(command);
-			await CommandHandler.HandleAsync(command, adapter.Socket);
+			try
+			{
+				await CommandHandler.HandleAsync(command, adapter.Socket);
+				await Task.Delay(100);
+				await CommandHandler.ExecuteCommandAsync(new DisplayMessageCommand($"Command \"{command.CommandName}\" executed."), adapter.Socket);
+			}
+			catch (Exception e)
+			{
+				Logger.Error(e);
+			}
 		}
 	}
 }

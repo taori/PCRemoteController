@@ -93,13 +93,16 @@ namespace Toolkit.Pipelines
 					break;
 				}
 
+				Log.Debug($"Flushing writer.");
 				var result = await writer.FlushAsync();
-				if (result.IsCompleted)
+				if (result.IsCompleted || result.IsCanceled)
 				{
+					Log.Debug($"Aborting writer: completed [{result.IsCompleted}], cancelled [{result.IsCanceled}]");
 					break;
 				}
 			}
 
+			Log.Debug($"Completing writer .");
 			writer.Complete();
 		}
 

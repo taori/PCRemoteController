@@ -21,10 +21,13 @@
 			<Label TextColor="Black" Text="{Binding Path=Title}" VerticalOptions="Center" FontSize="Large" Margin="0,0,10,0"/>
 			<!-- <ActivityIndicator IsRunning="True" Color="Black" Margin="0,10"/> -->
 		</StackLayout>
-		<ListView 
+		<ListView
 			Grid.Row="1"
 			ItemsSource="{Binding Path=Agents}"
 			CachingStrategy="RecycleElement">
+			<ListView.Behaviors>
+				<utility:SelectDisableBehavior/>
+			</ListView.Behaviors>
 			<ListView.ItemTemplate>
 				<DataTemplate>
 					<TextCell Text="{Binding Path=AgentName}" TextColor="Black" Command="{Binding Source={x:Reference Self}, Path=BindingContext.SelectCommand}" CommandParameter="{Binding Path=.}" />

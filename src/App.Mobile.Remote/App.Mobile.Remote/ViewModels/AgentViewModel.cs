@@ -57,6 +57,28 @@ namespace App.Mobile.Remote.ViewModels
 			}
 		}
 
+		private ICommand _refreshCommand;
+
+		public ICommand RefreshCommand
+		{
+			get => _refreshCommand ?? (_refreshCommand = new Command(RefreshExecute));
+			set => SetValue(ref _refreshCommand, value, nameof(RefreshCommand));
+		}
+
+		private bool _isRefreshing;
+
+		public bool IsRefreshing
+		{
+			get => _isRefreshing;
+			set => SetValue(ref _isRefreshing, value, nameof(IsRefreshing));
+		}
+
+		private async void RefreshExecute()
+		{
+			await SendCommandAsync(new ListCommandsCommand());
+			IsRefreshing = false;
+		}
+
 		private Subject<RemoteCommand> _whenCommandTransmissionRequested = new Subject<RemoteCommand>();
 		public IObservable<RemoteCommand> WhenCommandTransmissionRequested => _whenCommandTransmissionRequested;
 
@@ -90,8 +112,6 @@ namespace App.Mobile.Remote.ViewModels
 		/// <inheritdoc />
 		public async Task ActivateAsync(bool activatedBefore)
 		{
-//			WhenTcpLineReceived.Subscribe(ReceivedContent);
-//			WhenCommandTransmissionRequested.Subscribe(CommandTransmissionRequested);
 			_disposables = new CompositeDisposable();
 			_disposables.Add(WhenCommandTransmissionRequested.Subscribe(CommandTransmissionRequested));
 			await SendCommandAsync(new ListCommandsCommand());

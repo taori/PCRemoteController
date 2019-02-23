@@ -57,6 +57,7 @@ namespace RemoteAgent.Service.CommandHandling
 					break;
 				case KillProcessCommand concrete:
 					HandleKillProcess(concrete);
+					await Task.Delay(50);
 					await HandleListCommands(socket);
 					break;
 				default:
@@ -67,7 +68,6 @@ namespace RemoteAgent.Service.CommandHandling
 
 		private static void HandleKillProcess(KillProcessCommand concrete)
 		{
-			var id = (long) concrete.Parameters[1];
 			using (var process = Process.Start("taskkill", $"/PID {concrete.ProcessId}"))
 			{
 				process.StartInfo.CreateNoWindow = true;

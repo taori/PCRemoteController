@@ -14,10 +14,10 @@ namespace App.Mobile.Remote.Utility
 			{
 
 				if (!Xamarin.Forms.Application.Current.Properties.TryGetValue("BeaconPort", out var currentValue))
-					return 8085;
+					return 60001;
 				if (currentValue is int casted)
 					return casted;
-				return 8187;
+				return 60001;
 			}
 			set
 			{
@@ -30,10 +30,10 @@ namespace App.Mobile.Remote.Utility
 			get
 			{
 				if (!Xamarin.Forms.Application.Current.Properties.TryGetValue("TcpPort", out var currentValue))
-					return 8085;
+					return 60002;
 				if (currentValue is int casted)
 					return casted;
-				return 8085;
+				return 60002;
 			}
 			set
 			{

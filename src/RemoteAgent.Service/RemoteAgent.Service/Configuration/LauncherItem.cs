@@ -17,5 +17,12 @@ namespace RemoteAgent.Service.Configuration
 			get => base["path"] as string;
 			set => base["path"] = value;
 		}
+
+		[ConfigurationProperty("runas")]
+		public bool Runas
+		{
+			get => (bool)base["runas"];
+			set => base["runas"] = value;
+		}
 	}
 }

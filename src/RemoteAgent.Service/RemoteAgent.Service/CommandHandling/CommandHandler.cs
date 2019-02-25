@@ -68,22 +68,45 @@ namespace RemoteAgent.Service.CommandHandling
 
 		private static void HandleKillProcess(KillProcessCommand concrete)
 		{
-			using (var process = Process.Start("taskkill", $"/PID {concrete.ProcessId}"))
+			var startInfo = new ProcessStartInfo("cmd", $"/C taskkill /PID {concrete.ProcessId}");
+			startInfo.UseShellExecute = true;
+			startInfo.CreateNoWindow = true;
+			startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+//			startInfo.Verb = "runas";
+
+			using (var process = Process.Start(startInfo))
 			{
-				process.StartInfo.CreateNoWindow = true;
-				process.StartInfo.UseShellExecute = false;
-				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 				process.WaitForExit();
 			}
 		}
 
 		private static void HandleLaunchProcess(LaunchProcessCommand concrete)
 		{
-			using (var process = Process.Start(concrete.Path))
+			var availableProcesses = GetLauncherCommands();
+			var match = availableProcesses.Cast<LaunchProcessCommand>().FirstOrDefault(d => d.Path == concrete.Path);
+			if (match == null)
 			{
-				process.StartInfo.CreateNoWindow = true;
-				process.StartInfo.UseShellExecute = false;
-				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+				Logger.Warn($"Attempted execution of {concrete.Path} ass launch command - not found.");
+				return;
+			}
+
+			var configuration = GetProcessConfiguration();
+			var configurationMatch = configuration.LauncherItems.Cast<LauncherItem>().FirstOrDefault(d => d.Name == match.Name);
+			if (configurationMatch == null)
+			{
+				Logger.Error($"Unable to locate matching configuration entry for name: [{match.Name}]");
+				return;
+			}
+
+			var startInfo = new ProcessStartInfo("cmd", $"/C start {configurationMatch.Path}");
+			startInfo.UseShellExecute = true;
+			startInfo.CreateNoWindow = true;
+			startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+			if (configurationMatch.Runas)
+				startInfo.Verb = "runas";
+
+			using (var process = Process.Start(startInfo))
+			{
 			}
 		}
 
@@ -92,14 +115,14 @@ namespace RemoteAgent.Service.CommandHandling
 			NativeMethods.Monitor.On();
 		}
 
-		private static void HandleToggleSoundMute(ToggleSoundMuteCommand concrete)
-		{
-			NativeMethods.ToggleMute();
-		}
-
 		private static void HandleScreenOff()
 		{
 			NativeMethods.Monitor.Off();
+		}
+
+		private static void HandleToggleSoundMute(ToggleSoundMuteCommand concrete)
+		{
+			NativeMethods.ToggleMute();
 		}
 
 		private static async Task HandleListCommands(Socket socket)
@@ -122,7 +145,7 @@ namespace RemoteAgent.Service.CommandHandling
 
 		private static IEnumerable<RemoteCommand> GetClosableProcessCommands()
 		{
-			var launcherConfiguration = ConfigurationManager.GetSection("processConfiguration") as ProcessConfiguration;
+			var launcherConfiguration = GetProcessConfiguration();
 			var processes = Process.GetProcesses();
 			foreach (var process in DoesMatchProcessFilter(launcherConfiguration, processes))
 			{
@@ -159,7 +182,7 @@ namespace RemoteAgent.Service.CommandHandling
 
 		private static IEnumerable<RemoteCommand> GetLauncherCommands()
 		{
-			var launcherConfiguration = ConfigurationManager.GetSection("processConfiguration") as ProcessConfiguration;
+			var launcherConfiguration = GetProcessConfiguration();
 			foreach (LauncherItem item in launcherConfiguration.LauncherItems)
 			{
 //				if (File.Exists(item.Path))
@@ -169,12 +192,17 @@ namespace RemoteAgent.Service.CommandHandling
 			}
 		}
 
+		private static ProcessConfiguration GetProcessConfiguration()
+		{
+			return ConfigurationManager.GetSection("processConfiguration") as ProcessConfiguration;
+		}
+
 		private static void HandleShutdown(ShutdownCommand concrete)
 		{
 			using (var process = Process.Start("shutdown", $"/s /t {concrete.Delay.Value?.TotalSeconds ?? 60}"))
 			{
 				process.StartInfo.CreateNoWindow = true;
-				process.StartInfo.UseShellExecute = false;
+				process.StartInfo.UseShellExecute = true;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 			}
 		}
@@ -184,7 +212,7 @@ namespace RemoteAgent.Service.CommandHandling
 			using (var process = Process.Start("shutdown", $"/r /t {concrete.Delay.Value?.TotalSeconds ?? 60}"))
 			{
 				process.StartInfo.CreateNoWindow = true;
-				process.StartInfo.UseShellExecute = false;
+				process.StartInfo.UseShellExecute = true;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 			}
 		}
@@ -194,7 +222,7 @@ namespace RemoteAgent.Service.CommandHandling
 			using (var process = Process.Start("shutdown", "/a"))
 			{
 				process.StartInfo.CreateNoWindow = true;
-				process.StartInfo.UseShellExecute = false;
+				process.StartInfo.UseShellExecute = true;
 				process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
 			}
 		}

@@ -68,15 +68,21 @@ namespace RemoteAgent.Service.CommandHandling
 
 		private static void HandleKillProcess(KillProcessCommand concrete)
 		{
-			var startInfo = new ProcessStartInfo("cmd", $"/C taskkill /PID {concrete.ProcessId}");
-			startInfo.UseShellExecute = true;
-			startInfo.CreateNoWindow = true;
-			startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-//			startInfo.Verb = "runas";
-
-			using (var process = Process.Start(startInfo))
+			Logger.Info($"Killing process [{concrete.ProcessId}].");
+			var process = Process.GetProcesses().FirstOrDefault(d => d.Id == concrete.ProcessId);
+			if (process == null)
 			{
-				process.WaitForExit();
+				Logger.Warn($"Process id [{concrete.ProcessId}] not found.");
+				return;
+			}
+
+			try
+			{
+				process.Kill();
+			}
+			catch (Exception e)
+			{
+				Logger.Error(e);
 			}
 		}
 
@@ -107,6 +113,7 @@ namespace RemoteAgent.Service.CommandHandling
 
 			using (var process = Process.Start(startInfo))
 			{
+				process.WaitForExit();
 			}
 		}
 

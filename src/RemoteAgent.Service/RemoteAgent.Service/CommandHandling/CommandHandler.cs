@@ -50,6 +50,9 @@ namespace RemoteAgent.Service.CommandHandling
 				case ScreenOnCommand concrete:
 					HandleScreenOn();
 					break;
+				case LockScreenCommand concrete:
+					HandleLockScreen();
+					break;
 				case LaunchProcessCommand concrete:
 					HandleLaunchProcess(concrete);
 					await Task.Delay(300);
@@ -115,6 +118,11 @@ namespace RemoteAgent.Service.CommandHandling
 			{
 				process.WaitForExit();
 			}
+		}
+
+		private static void HandleLockScreen()
+		{
+			NativeMethods.LockWorkStation();
 		}
 
 		private static void HandleScreenOn()

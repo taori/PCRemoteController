@@ -6,6 +6,9 @@ namespace RemoteAgent.Service.Utility
 {
 	public class NativeMethods
 	{
+		[DllImport("user32.dll")]
+		public static extern void LockWorkStation();
+
 		[DllImport("user32.dll", EntryPoint = "GetDesktopWindow")]
 		private static extern IntPtr GetDesktopWindow();
 
